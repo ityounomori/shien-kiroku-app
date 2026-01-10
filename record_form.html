@@ -10,6 +10,7 @@
     <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
@@ -63,8 +64,6 @@
         }
 
         /* ▲▲▲ End Overrides ▲▲▲ */
-
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
         html {
             height: 100%;
@@ -842,7 +841,7 @@
 
                 <!-- 事業所選択 -->
                 <div class="mb-4">
-                    <label class="block text-xs font-bold text-gray-500 mb-1 pl-1">事業所</label>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 pl-1" for="signinOffice">事業所</label>
                     <div class="relative">
                         <select id="signinOffice"
                             class="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3 px-4 rounded-xl focus:ring-2 focus:ring-ginkgo-400 font-bold text-sm appearance-none">
@@ -859,7 +858,7 @@
 
                 <!-- 職員選択 -->
                 <div class="mb-6">
-                    <label class="block text-xs font-bold text-gray-500 mb-1 pl-1">職員名</label>
+                    <label class="block text-xs font-bold text-gray-500 mb-1 pl-1" for="staffSelect">職員名</label>
                     <div class="relative">
                         <select id="staffSelect"
                             class="w-full bg-gray-50 border border-gray-200 text-gray-800 py-3 px-4 rounded-xl focus:ring-2 focus:ring-ginkgo-400 font-bold text-sm appearance-none"
@@ -875,8 +874,8 @@
 
                 <!-- PIN入力 (標準入力に変更) -->
                 <div class="mb-8">
-                    <label
-                        class="block text-xs font-bold text-gray-500 mb-2 pl-1 uppercase tracking-widest text-center">PIN
+                    <label class="block text-xs font-bold text-gray-500 mb-2 pl-1 uppercase tracking-widest text-center"
+                        for="pinInput">PIN
                         (4桁)</label>
                     <input type="password" id="pinInput" maxlength="4" inputmode="numeric"
                         class="w-full bg-gray-50 border border-gray-200 text-gray-800 py-4 px-4 rounded-xl focus:ring-2 focus:ring-ginkgo-400 font-bold text-2xl text-center tracking-[1em] placeholder:tracking-normal"
@@ -981,29 +980,19 @@
                                 <span class="hidden lg:inline">出力</span>
                             </button>
 
-                            <!-- Kebab Menu (PC Only) -->
-                            <div class="relative">
-                                <button type="button" id="btnMore"
-                                    onclick="document.getElementById('desktop-overflow-menu').classList.toggle('hidden')"
-                                    class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm hover:bg-white hover:border-gray-300 transition flex items-center gap-1.5">
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
-                                        </path>
-                                    </svg>
-                                </button>
-                                <div id="desktop-overflow-menu"
-                                    class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl hidden z-50 p-1">
-                                    <button
-                                        onclick="openDropboxBrowser(); document.getElementById('desktop-overflow-menu').classList.add('hidden')"
-                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">📂
-                                        Dropboxフォルダー</button>
-                                    <button
-                                        onclick="openTrashModal(); document.getElementById('desktop-overflow-menu').classList.add('hidden')"
-                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">🗑️
-                                        ゴミ箱</button>
-                                </div>
-                            </div>
+                            <!-- Flattened Menu Items: Dropbox & Trash -->
+                            <button onclick="openDropboxBrowser()" id="btn-dropbox"
+                                class="flex items-center gap-1 text-sm text-gray-700 bg-white px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
+                                title="Dropboxフォルダー">
+                                <span>📂</span>
+                                <span class="hidden lg:inline">Dropbox</span>
+                            </button>
+                            <button onclick="openTrashModal()" id="btn-trash"
+                                class="flex items-center gap-1 text-sm text-gray-700 bg-white px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
+                                title="ゴミ箱">
+                                <span>🗑️</span>
+                                <span class="hidden lg:inline">ゴミ箱</span>
+                            </button>
                         </div>
 
                         <!-- 4. Hamburger Menu (Mobile Only) -->
@@ -1094,13 +1083,14 @@
                         class="hidden bg-white border border-gray-200 rounded-lg p-3 shadow-sm text-sm w-full sm:w-fit transition-all">
                         <div class="flex flex-col sm:flex-row items-center gap-3">
                             <div class="flex items-center gap-2 w-full sm:w-auto"><label
-                                    class="text-gray-500 text-xs font-bold shrink-0">開始:</label><input type="date"
-                                    id="custom-start"
+                                    class="text-gray-500 text-xs font-bold shrink-0"
+                                    for="custom-start">開始:</label><input type="date" id="custom-start"
                                     class="border border-gray-300 rounded p-1 text-sm w-full sm:w-auto">
                             </div>
                             <div class="flex items-center gap-2 w-full sm:w-auto"><label
-                                    class="text-gray-500 text-xs font-bold shrink-0">終了:</label><input type="date"
-                                    id="custom-end" class="border border-gray-300 rounded p-1 text-sm w-full sm:w-auto">
+                                    class="text-gray-500 text-xs font-bold shrink-0" for="custom-end">終了:</label><input
+                                    type="date" id="custom-end"
+                                    class="border border-gray-300 rounded p-1 text-sm w-full sm:w-auto">
                             </div>
                             <div
                                 class="flex items-center gap-2 w-full sm:w-auto sm:ml-2 pt-2 sm:pt-0 border-t border-gray-100 sm:border-none mt-2 sm:mt-0">
@@ -1777,7 +1767,8 @@
             </div>
             <div class="p-6 space-y-6">
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">職員名</label>
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2"
+                        for="switch-staff-select">職員名</label>
                     <div class="relative">
                         <select id="switch-staff-select"
                             class="w-full p-4 pl-12 bg-gray-50 border-2 border-gray-100 rounded-xl appearance-none font-bold text-gray-700 focus:border-indigo-500 focus:ring-0 transition">
@@ -1787,7 +1778,8 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">PINコード
+                    <label class="block text-xs font-bold text-gray-400 uppercase tracking-widest mb-2"
+                        for="switch-pin-input">PINコード
                         (4桁)</label>
                     <div class="relative">
                         <input type="password" id="switch-pin-input" maxlength="4" placeholder="●●●●"
@@ -5025,31 +5017,10 @@
         }
 
         // -----------------------------------------------------------
-        // ツールバー・レスポンシブ
+        // ツールバー・レスポンシブ (Removed for Flat UI)
         // -----------------------------------------------------------
-        function rebalanceToolbar() {
-            const menu = document.getElementById('desktop-overflow-menu');
-            if (!menu) return;
-
-            // 固定項目（Dropboxフォルダー / ゴミ箱）がまだ無い場合は追加
-            if (menu.children.length === 0) {
-                const items = [
-                    { text: '📁 Dropboxフォルダー', onclick: 'openDropboxBrowser()' },
-                    { text: '🗑️ ゴミ箱', onclick: 'openTrashModal()' }
-                ];
-                items.forEach(it => {
-                    const btn = document.createElement('button');
-                    btn.className = 'w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded'; // Match static styling
-                    btn.innerHTML = it.text;
-                    btn.setAttribute('onclick', it.onclick + "; document.getElementById('desktop-overflow-menu').classList.add('hidden')");
-                    // btn.addEventListener('click', () => menu.classList.remove('active')); // Removing legacy logic
-                    menu.appendChild(btn);
-                });
-            }
-        }
-
-        // 定期リサイズ監視
-        window.addEventListener('resize', rebalanceToolbar);
+        // function rebalanceToolbar() { ... } Removed
+        // window.addEventListener('resize', rebalanceToolbar); Removed
 
         // --- Routing (Simple) ---
         function route() {
@@ -5468,17 +5439,8 @@
             if (menu) menu.classList.toggle('hidden');
         }
         window.clearWhoami = clearWhoami;
-        // [Fix] Click outside to close More Menu
-        document.addEventListener('click', (e) => {
-            const menu = document.getElementById('desktop-overflow-menu');
-            const btn = document.getElementById('btnMore');
-            if (menu && !menu.classList.contains('hidden')) {
-                // クリックされた要素がメニュー内でもボタン内でもなければ閉じる
-                if (!menu.contains(e.target) && (!btn || !btn.contains(e.target))) {
-                    menu.classList.add('hidden');
-                }
-            }
-        });
+        // [Fix] Click outside to close More Menu (Removed as More Menu is gone)
+        // document.addEventListener('click', ...);
         window.closePinModal = closePinModal;
         window.submitPinAuth = submitPinAuth;
         window.closeReturnModal = closeReturnModal;
