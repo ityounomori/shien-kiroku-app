@@ -3396,13 +3396,14 @@
             }
 
             // 2. クライアント側フィルター適用 (項目フィルター)
-            const filterItem = APP_STATE.filter ? APP_STATE.filter.item : 'all';
+            const filterItem = (APP_STATE.filter && APP_STATE.filter.item) ? APP_STATE.filter.item : 'all';
             if (filterItem && filterItem !== 'all') {
                 displayRecords = displayRecords.filter(r => r['項目'] === filterItem);
             }
 
             const container = document.getElementById('record-list-container');
             container.innerHTML = '';
+            container.classList.remove('hidden'); // Ensure container is visible
 
             if (!displayRecords || displayRecords.length === 0) {
                 container.innerHTML = '<div class="text-center text-gray-500 py-8">記録がありません</div>';
