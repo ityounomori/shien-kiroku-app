@@ -2447,6 +2447,11 @@
                 APP_STATE.hasMore[name] = false;
             }
 
+            if (isAppend) {
+                // Ensure specific button loading
+                const btn = document.getElementById('btn-load-more');
+                if (btn) setButtonLoading(btn, true);
+            }
             try {
                 // Timezoneずれを防ぐため、ISOStringではなくローカルの日付文字列を送信
                 const options = {
@@ -2460,6 +2465,12 @@
 
                 google.script.run
                     .withSuccessHandler(res => {
+                        // [Fix] Race Condition Check
+                        if (APP_STATE.lastRequestTime[name] !== reqTime) {
+                            console.log('[Debug] Ignoring stale request result');
+                            return;
+                        }
+
                         console.log('[Debug] loadRecords success callback started. Success:', res ? res.success : 'res is null');
                         APP_STATE.isLoading = false;
                         showLoading(false);
@@ -3525,15 +3536,15 @@
                         return `<span class="${c} font-bold px-1.5 py-0.5 rounded">${text}</span>`;
                     };
 
-                    // Temp
+                    // Temp & BP (Merged Line)
+                    const line1 = [];
                     if (r.temp) {
                         const v = parseFloat(r.temp);
                         let type = 'green';
                         if (v >= 37.5) type = 'red';
                         else if (v >= 37.0) type = 'orange';
-                        items.push(makeBadge(`熱: ${r.temp}`, type));
+                        line1.push(makeBadge(`熱: ${r.temp}`, type));
                     }
-                    // BP
                     if (r.bph || r.bpl) {
                         const h = Math.round(parseFloat(r.bph || 0));
                         const l = Math.round(parseFloat(r.bpl || 0));
@@ -3542,8 +3553,10 @@
                         let type = 'green';
                         if (h >= 140 || l >= 90) type = 'red';
                         else if (h < 90) type = 'blue';
-                        items.push(makeBadge(`BP: ${hVal}/${lVal}`, type));
+                        line1.push(makeBadge(`BP: ${hVal}/${lVal}`, type));
                     }
+                    if (line1.length > 0) items.push(line1.join(' ')); // Push as single string (safe HTML via makeBadge)
+
                     // Pulse
                     if (r.pulse) {
                         const v = Math.round(parseFloat(r.pulse));
@@ -3654,30 +3667,26 @@
         function copyRecord(rn) { const r = findRecordByRowNumber(rn); if (!r) return; openRecordModal('new'); setTimeout(() => { document.getElementById('record-item').value = r['項目']; renderDynamicInputs(r['項目'], r.raw); document.getElementById('record-content').value = r['経過内容・様子']; }, 50); }
         function deleteRecord(rn) {
             showConfirmDialog('削除', 'この記録を削除しますか？\n（ゴミ箱へ移動します）', () => {
+                const btn = document.getElementById('confirm-ok-btn');
+                setButtonLoading(btn, true);
+                // Do not change text to keep spinner
+
                 const w = getWhoami();
                 if (!w || !w.officeSelected) return showToast('error', 'サインイン情報不足');
 
-                // Spinner feedback
-                const btn = document.getElementById('confirm-ok-btn');
-
-                // [Fix] Use standard setButtonLoading
-                setButtonLoading(btn, true);
-
-                // [Fix] Ensure row number is an integer
-                const rowNum = parseInt(rn, 10);
-
                 google.script.run.withSuccessHandler(res => {
-                    closeConfirm();
-                    setButtonLoading(btn, false);
-
-                    showToast('success', res);
-                    loadRecords(APP_STATE.currentUserName);
+                    closeConfirm(); // Success -> Close
+                    showToast('success', res || '削除しました');
+                    // Reload
+                    const name = APP_STATE.currentUserName;
+                    if (name) loadRecords(name);
                 }).withFailureHandler(err => {
-                    setButtonLoading(btn, false);
+                    setButtonLoading(btn, false); // Fail -> Enable button
                     handleError(err);
-                }).deleteRecordByOffice(w.officeSelected, rowNum, w);
-            });
+                }).deleteRecordByOffice(w.officeSelected, rn, w);
+            }, true); // manualClose = true
         }
+
 
         // [v43 Feature] Dynamic Phrase Manager
         function openPhraseManagerModal(targetId = 'record-content', defaultCategory = '排泄') {
