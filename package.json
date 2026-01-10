@@ -1,0 +1,12 @@
+{
+    "name": "shien-kiroku-app",
+    "version": "1.0.0",
+    "description": "",
+    "main": "server.js",
+    "scripts": {
+        "ship": "clasp push && git add . && git commit -m 'deploy' && git push origin main"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC"
+}
