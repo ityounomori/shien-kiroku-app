@@ -1864,43 +1864,44 @@
                         <input id="inc-simple-place" class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg text-sm"
                             placeholder="居室、リビング等" />
                     </label>
-                    <label class="block md:col-span-2">
+                    <div class="block md:col-span-2">
                         <div class="flex justify-between items-end mb-1">
-                            <span class="text-xs font-bold text-gray-500">発生状況（5W1H） *</span>
+                            <label for="inc-simple-situation" class="text-xs font-bold text-gray-500">発生状況（5W1H）
+                                *</label>
                             <button onclick="openPhraseManagerModal('inc-simple-situation', '事故_状況')" type="button"
                                 class="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100">定型文</button>
                         </div>
                         <textarea id="inc-simple-situation" rows="3" oninput="saveDraft()"
                             class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg text-sm"
                             placeholder="いつ、どこで、誰が、何を..."></textarea>
-                    </label>
-                    <label class="block md:col-span-2">
+                    </div>
+                    <div class="block md:col-span-2">
                         <div class="flex justify-between items-end mb-1">
-                            <span class="text-xs font-bold text-gray-500">原因</span>
+                            <label for="inc-simple-cause" class="text-xs font-bold text-gray-500">原因</label>
                             <button onclick="openPhraseManagerModal('inc-simple-cause', '事故_原因')" type="button"
                                 class="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100">定型文</button>
                         </div>
                         <textarea id="inc-simple-cause" rows="2" oninput="saveDraft()"
                             class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
-                    </label>
-                    <label class="block md:col-span-1">
+                    </div>
+                    <div class="block md:col-span-1">
                         <div class="flex justify-between items-end mb-1">
-                            <span class="text-xs font-bold text-gray-500">対応</span>
+                            <label for="inc-simple-response" class="text-xs font-bold text-gray-500">対応</label>
                             <button onclick="openPhraseManagerModal('inc-simple-response', '事故_対応')" type="button"
                                 class="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100">定型文</button>
                         </div>
                         <textarea id="inc-simple-response" rows="2" oninput="saveDraft()"
                             class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
-                    </label>
-                    <label class="block md:col-span-1">
+                    </div>
+                    <div class="block md:col-span-1">
                         <div class="flex justify-between items-end mb-1">
-                            <span class="text-xs font-bold text-gray-500">再発防止策</span>
+                            <label for="inc-simple-prevention" class="text-xs font-bold text-gray-500">再発防止策</label>
                             <button onclick="openPhraseManagerModal('inc-simple-prevention', '事故_再発防止')" type="button"
                                 class="text-[10px] text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 hover:bg-indigo-100">定型文</button>
                         </div>
                         <textarea id="inc-simple-prevention" rows="2" oninput="saveDraft()"
                             class="mt-1 w-full p-2.5 border border-gray-300 rounded-lg text-sm"></textarea>
-                    </label>
+                    </div>
                 </div>
             </div>
 
