@@ -35,6 +35,35 @@
 
 
     <style>
+        /* ▼▼▼ Responsive Header Overrides (Robust) ▼▼▼ */
+        #header-user-pc-container {
+            display: none;
+        }
+
+        #toolbar-pc {
+            display: none;
+        }
+
+        #mobile-menu-btn {
+            display: block;
+        }
+
+        @media (min-width: 768px) {
+            #header-user-pc-container {
+                display: block !important;
+            }
+
+            #toolbar-pc {
+                display: flex !important;
+            }
+
+            #mobile-menu-btn {
+                display: none !important;
+            }
+        }
+
+        /* ▲▲▲ End Overrides ▲▲▲ */
+
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
 
         html {
@@ -886,7 +915,7 @@
                             <span class="font-bold text-gray-800">支援記録</span>
                         </h1>
                         <!-- PC User Selector -->
-                        <div class="hidden md:block w-64" id="header-user-pc-container">
+                        <div class="w-64" id="header-user-pc-container">
                             <select id="user-selector-pc"
                                 class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500">
                                 <!-- Populated by JS -->
@@ -937,8 +966,8 @@
                             <span class="hidden lg:inline ml-1">更新</span>
                         </button>
 
-                        <!-- 3. PC Menu Items (Hidden on Mobile) -->
-                        <div id="toolbar-pc" class="hidden md:flex items-center gap-2">
+                        <!-- 3. PC Menu Items (Visibility controlled by CSS) -->
+                        <div id="toolbar-pc" class="items-center gap-2">
                             <button onclick="openIncidentSection()" id="btn-incident-nav"
                                 class="flex items-center gap-1 text-sm text-gray-700 bg-white px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
                                 title="事故報告">
@@ -978,13 +1007,15 @@
                         </div>
 
                         <!-- 4. Hamburger Menu (Mobile Only) -->
-                        <button onclick="toggleMobileMenu()"
-                            class="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
-                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M4 6h16M4 12h16M4 18h16"></path>
-                            </svg>
-                        </button>
+                        <div id="mobile-menu-btn">
+                            <button onclick="toggleMobileMenu()"
+                                class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M4 6h16M4 12h16M4 18h16"></path>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <!-- Global Navigation Drawer (Mobile/PC) -->
