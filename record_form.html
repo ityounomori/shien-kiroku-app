@@ -2470,6 +2470,13 @@
                         // [Fix] Race Condition Check - Only process if this is the latest request
                         if (APP_STATE.requestNonce !== reqId) {
                             console.log('[Debug] Ignoring stale request result');
+                            // Reset loading states even for stale requests
+                            APP_STATE.isLoading = false;
+                            if (isAppend) {
+                                APP_STATE.isLoadingMore = false;
+                                const btn = document.getElementById('btn-load-more');
+                                if (btn) setButtonLoading(btn, false);
+                            }
                             return;
                         }
 
@@ -2801,10 +2808,6 @@
             document.getElementById('custom-start').value = formatDateISO(APP_STATE.filter.startDate);
             document.getElementById('custom-end').value = formatDateISO(APP_STATE.filter.endDate);
 
-            // [Fix] Immediately increment requestNonce to invalidate pending requests
-            if (!APP_STATE.requestNonce) APP_STATE.requestNonce = 0;
-            APP_STATE.requestNonce++;
-
             if (APP_STATE.currentUserName) {
                 loadRecords(APP_STATE.currentUserName);
             } else {
@@ -2821,10 +2824,6 @@
             document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
             APP_STATE.filter.startDate = new Date(s + 'T00:00:00');
             APP_STATE.filter.endDate = new Date(e + 'T23:59:59');
-
-            // [Fix] Immediately increment requestNonce to invalidate pending requests
-            if (!APP_STATE.requestNonce) APP_STATE.requestNonce = 0;
-            APP_STATE.requestNonce++;
 
             if (APP_STATE.currentUserName) {
                 loadRecords(APP_STATE.currentUserName);
