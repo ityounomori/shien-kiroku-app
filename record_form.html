@@ -893,22 +893,22 @@
                             </select>
                         </div>
                     </div>
-                    <div class="flex items-center gap-2 relative" id="toolbar">
-                        <!-- User Avatar Menu (PC) -->
-                        <div class="relative shrink-0 flex items-center gap-3">
+                    <!-- Right Side: User Icon, Refresh, PC Menu, Hamburger -->
+                    <div class="flex items-center gap-2" id="toolbar">
+
+                        <!-- 1. User Icon (Visible on All Devices) -->
+                        <div class="relative shrink-0 flex items-center">
                             <button onclick="document.getElementById('userDropdown').classList.toggle('hidden')"
-                                id="header-user-pc-container"
-                                class="hidden md:flex w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-indigo-50 border-2 border-indigo-100 items-center justify-center text-indigo-500 hover:bg-indigo-100 transition shadow-sm overflow-hidden z-20 relative">
+                                id="header-user-icon"
+                                class="flex w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-indigo-50 border-2 border-indigo-100 items-center justify-center text-indigo-500 hover:bg-indigo-100 transition shadow-sm overflow-hidden z-20 relative">
                                 <i class="fas fa-user text-base sm:text-lg"></i>
                             </button>
 
-                            <!-- Dropdown Menu -->
+                            <!-- User Dropdown (Same as before) -->
                             <div id="userDropdown"
                                 class="hidden absolute top-full right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-xl z-[100] overflow-hidden transform origin-top-right transition-all">
                                 <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center gap-3">
-                                    <div id="dropdownAvatar" class="shrink-0">
-                                        <!-- Avatar injected by JS -->
-                                    </div>
+                                    <div id="dropdownAvatar" class="shrink-0"></div>
                                     <div class="overflow-hidden">
                                         <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
                                             ログイン中</p>
@@ -918,61 +918,68 @@
                                 </div>
                                 <div class="p-1">
                                     <button onclick="openUserSwitchModal()" class="user-dropdown-item rounded-lg">
-                                        <i class="fas fa-user-friends opacity-70"></i>
-                                        <span>ユーザー切り替え</span>
+                                        <i class="fas fa-user-friends opacity-70"></i> <span>ユーザー切り替え</span>
                                     </button>
                                     <button
                                         onclick="clearWhoami(); document.getElementById('userDropdown').classList.add('hidden')"
                                         class="user-dropdown-item rounded-lg text-red-500">
-                                        <i class="fas fa-sign-out-alt opacity-70"></i>
-                                        <span>ログアウト</span>
+                                        <i class="fas fa-sign-out-alt opacity-70"></i> <span>ログアウト</span>
                                     </button>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- Main Toolbar Buttons -->
-                        <div id="toolbar-main" class="flex items-center gap-2 shrink-0">
-                            <button onclick="reloadApp()" id="btn-refresh"
-                                class="flex items-center gap-1 text-xs sm:text-sm text-gray-700 bg-white px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
-                                title="更新">
-                                <i class="fas fa-sync-alt text-gray-400"></i>
-                                <span class="hidden lg:inline">更新</span>
-                            </button>
+                        <!-- 2. Refresh Button (Visible on All Devices) -->
+                        <button onclick="reloadApp()" id="btn-refresh"
+                            class="flex items-center justify-center w-9 h-9 sm:w-auto sm:h-auto sm:px-3 sm:py-1.5 text-gray-700 bg-white rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
+                            title="更新">
+                            <i class="fas fa-sync-alt text-gray-400"></i>
+                            <span class="hidden lg:inline ml-1">更新</span>
+                        </button>
+
+                        <!-- 3. PC Menu Items (Hidden on Mobile) -->
+                        <div id="toolbar-pc" class="hidden md:flex items-center gap-2">
                             <button onclick="openIncidentSection()" id="btn-incident-nav"
-                                class="hidden md:flex items-center gap-1 text-xs sm:text-sm text-gray-700 bg-white px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
+                                class="flex items-center gap-1 text-sm text-gray-700 bg-white px-3 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 transition font-bold"
                                 title="事故報告">
                                 <i class="fas fa-exclamation-triangle text-orange-500"></i>
                                 <span class="hidden lg:inline">事故報告</span>
                             </button>
                             <button onclick="switchView('output')" id="btn-view-output"
-                                class="hidden md:flex items-center gap-1 text-xs sm:text-sm text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition font-bold"
+                                class="flex items-center gap-1 text-sm text-indigo-600 bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-100 hover:bg-indigo-100 transition font-bold"
                                 title="出力">
                                 <i class="fas fa-file-export"></i>
                                 <span class="hidden lg:inline">出力</span>
                             </button>
-                        </div>
 
-                        <!-- Overflow Menu Button -->
-                        <div class="relative shrink-0 hidden md:block">
-                            <button type="button" id="btnMore"
-                                onclick="document.getElementById('moreMenu').classList.toggle('hidden')"
-                                class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm hover:bg-white hover:border-gray-300 transition flex items-center gap-1.5">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
-                                    </path>
-                                </svg>
-                            </button>
-                            <div id="moreMenu">
-                                <!-- Items auto-populated by rebalanceToolbar() -->
+                            <!-- Kebab Menu (PC Only) -->
+                            <div class="relative">
+                                <button type="button" id="btnMore"
+                                    onclick="document.getElementById('moreMenu').classList.toggle('hidden')"
+                                    class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm hover:bg-white hover:border-gray-300 transition flex items-center gap-1.5">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                            d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z">
+                                        </path>
+                                    </svg>
+                                </button>
+                                <div id="moreMenu"
+                                    class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl hidden z-50 p-1">
+                                    <button
+                                        onclick="openDropboxBrowser(); document.getElementById('moreMenu').classList.add('hidden')"
+                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">📂
+                                        Dropboxフォルダー</button>
+                                    <button
+                                        onclick="openTrashModal(); document.getElementById('moreMenu').classList.add('hidden')"
+                                        class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">🗑️
+                                        ゴミ箱</button>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                    <!-- Mobile/PC Hamburger Menu Trigger -->
-                    <div class="flex items-center gap-2 md:hidden">
+
+                        <!-- 4. Hamburger Menu (Mobile Only) -->
                         <button onclick="toggleMobileMenu()"
-                            class="p-2 text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
+                            class="md:hidden p-2 text-gray-600 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M4 6h16M4 12h16M4 18h16"></path>
@@ -3447,6 +3454,14 @@
 
             // Continuation Tokenがある場合のみボタンを表示
             toggleLoadMoreButton(!!APP_STATE.continuationToken);
+        }
+
+        function toggleLoadMoreButton(show) {
+            const container = document.getElementById('load-more-container');
+            if (container) {
+                if (show) container.classList.remove('hidden');
+                else container.classList.add('hidden');
+            }
         }
 
         function openTextDetail(rn) { const rec = findRecordByRowNumber(rn); if (rec) { showTextDetail(rec['経過内容・様子']); } }
