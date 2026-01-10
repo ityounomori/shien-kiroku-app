@@ -2559,7 +2559,8 @@
         }
 
         function findRecordByRowNumber(rn) {
-            return (APP_STATE.allRecords[APP_STATE.currentUserName] || []).find(r => r.rowNumber === rn);
+            // [Fix] Use loose equality (==) because rn comes as string from HTML attribute
+            return (APP_STATE.allRecords[APP_STATE.currentUserName] || []).find(r => r.rowNumber == rn);
         }
 
         function setupEventListeners() {
@@ -3568,6 +3569,9 @@
                 btn.disabled = true;
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
+                // [Fix] Ensure row number is an integer
+                const rowNum = parseInt(rn, 10);
+
                 google.script.run.withSuccessHandler(res => {
                     closeConfirm();
                     btn.disabled = false;
@@ -3579,7 +3583,7 @@
                     btn.disabled = false;
                     btn.textContent = originalText;
                     handleError(err);
-                }).deleteRecordByOffice(w.officeSelected, rn, w);
+                }).deleteRecordByOffice(w.officeSelected, rowNum, w);
             }, true); // manualClose = true
         }
 
