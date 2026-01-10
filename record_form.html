@@ -1702,9 +1702,7 @@
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-8 text-center">
             <!-- Success Icon -->
             <div class="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg class="w-10 h-10 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
-                </svg>
+                <i id="success-modal-icon" class="fas fa-check text-4xl text-green-600"></i>
             </div>
 
             <!-- Title -->
@@ -4111,20 +4109,16 @@
             const office = w ? w.officeSelected : document.getElementById('signinOffice').value; // フォールバック
             if (!office) return showToast('error', '事業所情報が不明です。再ログインしてください。');
 
-            // [v37+] Button loading state
+            // [Refactor] Button loading state
             const submitBtn = document.querySelector('#user-switch-modal button[onclick="submitUserSwitch()"]');
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 認証中...';
-            }
+            setButtonLoading(submitBtn, true);
 
-            showLoading();
+            // showLoading(); // Overlay replaced by button spinner
+
             google.script.run.withSuccessHandler(auth => {
-                hideLoading();
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = '切り替えを実行';
-                }
+                // hideLoading();
+                setButtonLoading(submitBtn, false);
+
                 if (auth && auth.success) {
                     APP_STATE.whoami = auth;
                     sessionStorage.setItem('gas_whoami', JSON.stringify(auth));
@@ -5131,6 +5125,8 @@
             const titleElem = document.getElementById('success-modal-title');
             const nameElem = document.getElementById('success-staff-name');
             const suffixElem = document.getElementById('success-modal-suffix');
+            const iconElem = document.getElementById('success-modal-icon');
+
             if (!modal || !nameElem || !suffixElem) {
                 console.warn('Success modal elements not found');
                 return;
@@ -5139,25 +5135,22 @@
             // 敬称を隠す
             if (suffixElem) suffixElem.style.display = 'none';
 
-            if (titleElem) {
+            if (titleElem && iconElem) {
                 if (type === 'success') {
-                    // [Fix] メッセージ内容に応じてタイトルを変える、または汎用タイトルにする
-                    // ここでは単に「完了」とするか、引数で渡されたメッセージが短い場合はそれをタイトルにする等の工夫も可能だが、
-                    // シンプルに「成功」または文脈依存にする。今回「保存完了」固定が問題だったので修正。
-                    titleElem.textContent = '完了'; // "Success" / "Done"
-                    titleElem.parentElement.querySelector('i').className = 'fas fa-check text-forest-500 text-3xl';
+                    titleElem.textContent = '完了';
+                    iconElem.className = 'fas fa-check text-green-600 text-4xl';
                 } else if (type === 'create') {
                     titleElem.textContent = '作成成功';
-                    titleElem.parentElement.querySelector('i').className = 'fas fa-magic text-indigo-500 text-3xl';
+                    iconElem.className = 'fas fa-magic text-indigo-500 text-4xl';
                 } else if (type === 'download') {
                     titleElem.textContent = 'ダウンロード';
-                    titleElem.parentElement.querySelector('i').className = 'fas fa-file-download text-blue-500 text-3xl';
-                } else if (type === 'info' || type === 'loading') { // [Fix] 新しいタイプ
+                    iconElem.className = 'fas fa-file-download text-blue-500 text-4xl';
+                } else if (type === 'info' || type === 'loading') {
                     titleElem.textContent = 'お知らせ';
-                    titleElem.parentElement.querySelector('i').className = 'fas fa-info-circle text-blue-500 text-3xl';
+                    iconElem.className = 'fas fa-info-circle text-blue-500 text-4xl';
                 } else if (type === 'error') {
                     titleElem.textContent = 'エラー';
-                    titleElem.parentElement.querySelector('i').className = 'fas fa-exclamation-triangle text-red-500 text-3xl';
+                    iconElem.className = 'fas fa-exclamation-triangle text-red-500 text-4xl';
                 }
             }
 
