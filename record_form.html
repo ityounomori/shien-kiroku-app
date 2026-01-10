@@ -984,7 +984,7 @@
                             <!-- Kebab Menu (PC Only) -->
                             <div class="relative">
                                 <button type="button" id="btnMore"
-                                    onclick="document.getElementById('moreMenu').classList.toggle('hidden')"
+                                    onclick="document.getElementById('desktop-overflow-menu').classList.toggle('hidden')"
                                     class="bg-gray-100 text-gray-600 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-bold shadow-sm hover:bg-white hover:border-gray-300 transition flex items-center gap-1.5">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -992,14 +992,14 @@
                                         </path>
                                     </svg>
                                 </button>
-                                <div id="moreMenu"
+                                <div id="desktop-overflow-menu"
                                     class="absolute right-0 mt-2 w-48 bg-white border border-gray-200 rounded-lg shadow-xl hidden z-50 p-1">
                                     <button
-                                        onclick="openDropboxBrowser(); document.getElementById('moreMenu').classList.add('hidden')"
+                                        onclick="openDropboxBrowser(); document.getElementById('desktop-overflow-menu').classList.add('hidden')"
                                         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">📂
                                         Dropboxフォルダー</button>
                                     <button
-                                        onclick="openTrashModal(); document.getElementById('moreMenu').classList.add('hidden')"
+                                        onclick="openTrashModal(); document.getElementById('desktop-overflow-menu').classList.add('hidden')"
                                         class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded">🗑️
                                         ゴミ箱</button>
                                 </div>
@@ -5028,7 +5028,7 @@
         // ツールバー・レスポンシブ
         // -----------------------------------------------------------
         function rebalanceToolbar() {
-            const menu = document.getElementById('moreMenu');
+            const menu = document.getElementById('desktop-overflow-menu');
             if (!menu) return;
 
             // 固定項目（Dropboxフォルダー / ゴミ箱）がまだ無い場合は追加
@@ -5039,10 +5039,10 @@
                 ];
                 items.forEach(it => {
                     const btn = document.createElement('button');
-                    btn.className = 'more-item';
+                    btn.className = 'w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded'; // Match static styling
                     btn.innerHTML = it.text;
-                    btn.setAttribute('onclick', it.onclick);
-                    btn.addEventListener('click', () => menu.classList.remove('active'));
+                    btn.setAttribute('onclick', it.onclick + "; document.getElementById('desktop-overflow-menu').classList.add('hidden')");
+                    // btn.addEventListener('click', () => menu.classList.remove('active')); // Removing legacy logic
                     menu.appendChild(btn);
                 });
             }
@@ -5470,7 +5470,7 @@
         window.clearWhoami = clearWhoami;
         // [Fix] Click outside to close More Menu
         document.addEventListener('click', (e) => {
-            const menu = document.getElementById('moreMenu');
+            const menu = document.getElementById('desktop-overflow-menu');
             const btn = document.getElementById('btnMore');
             if (menu && !menu.classList.contains('hidden')) {
                 // クリックされた要素がメニュー内でもボタン内でもなければ閉じる
