@@ -1016,6 +1016,7 @@ function getIncidentsByOfficeV2(officeName) {
 function approveIncidentByOffice(officeName, rowId, whoami, pin) {
   // 再認証 & 権限チェック
   const auth = verifyUserByPin(officeName, whoami.name, pin);
+  if (auth.success === false) throw new Error(auth.message || 'PIN認証に失敗しました。');
   if (auth.role !== 'manager') throw new Error('承認権限がありません(Managerのみ)。');
 
   const files = getFilesByOffice(officeName);
@@ -1044,6 +1045,7 @@ function approveIncidentByOffice(officeName, rowId, whoami, pin) {
 function returnIncidentByOffice(officeName, rowId, whoami, pin, reason) {
   // 再認証 & 権限チェック
   const auth = verifyUserByPin(officeName, whoami.name, pin);
+  if (auth.success === false) throw new Error(auth.message || 'PIN認証に失敗しました。');
   if (auth.role !== 'manager') throw new Error('差戻し権限がありません(Managerのみ)。');
 
   // 理由必須

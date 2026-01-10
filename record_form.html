@@ -3347,7 +3347,7 @@
             const d = document.getElementById('dynamic-input-area'); d.innerHTML = ''; d.classList.remove('hidden');
             if (cat === '排泄') d.innerHTML = `<span class="block text-xs font-bold text-gray-500 mb-1">排泄区分</span><div class="flex gap-2">${['大', '小', '無'].map(v => `<label class="flex-1 text-center cursor-pointer"><input type="radio" name="detail-input" value="${v}" class="peer sr-only" ${rd.detail1 === v ? 'checked' : ''}><div class="p-3 rounded-lg border border-gray-300 peer-checked:bg-indigo-600 peer-checked:text-white hover:bg-gray-50 text-sm font-bold transition">${v}</div></label>`).join('')}</div>`;
             else if (cat === '服薬') d.innerHTML = `<label for="detail-input-text" class="block text-xs font-bold text-gray-500 mb-1">服薬量</label><input type="text" id="detail-input-text" class="w-full p-3 border rounded-lg text-sm" placeholder="全量" value="${rd.detail1 || ''}">`;
-            else if (cat === 'バイタル') d.innerHTML = `<div class="grid grid-cols-2 gap-3">${['temp:体温(℃)', 'pulse:脈拍', 'bph:血圧(上)', 'bpl:血圧(下)', 'spo2:SPO2(%)', 'weight:体重(kg)'].map(f => { const [k, l] = f.split(':'); const step = (k === 'temp' || k === 'weight') ? '0.1' : '1'; return `<div><label for="v-${k}" class="text-xs font-bold text-gray-500">${l}</label><input type="number" step="${step}" id="v-${k}" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" value="${rd[k] || ''}"></div>` }).join('')}</div>`;
+            else if (cat === 'バイタル') d.innerHTML = `<div class="grid grid-cols-2 gap-3">${['temp:体温(℃)', 'pulse:脈拍', 'bph:血圧(上)', 'bpl:血圧(下)', 'spo2:SPO2(%)', 'weight:体重(kg)'].map(f => { const [k, l] = f.split(':'); const step = (k === 'temp' || k === 'weight') ? '0.1' : '1'; return `<div><label for="v-${k}" class="text-xs font-bold text-gray-500">${l}</label><input type="number" step="${step}" id="v-${k}" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" value="${rd[k] || ''}" onblur="if(this.step=='1' && this.value) this.value=Math.round(this.value)"></div>` }).join('')}</div>`;
             else if (cat === '食事') d.innerHTML = `<div class="grid grid-cols-2 gap-3"><div><label for="v-meal" class="text-xs font-bold text-gray-500">摂取率(%)</label><input type="number" id="v-meal" class="w-full p-2.5 border rounded-lg text-sm" value="${rd.detail1 || ''}"></div><div><label for="v-water" class="text-xs font-bold text-gray-500">水分(ml)</label><input type="number" id="v-water" class="w-full p-2.5 border rounded-lg text-sm" value="${rd.detail2 || ''}"></div></div>`;
             else if (cat === 'その他') d.innerHTML = `<label for="detail-input-select" class="block text-xs font-bold text-gray-500 mb-1">項目</label><select id="detail-input-select" class="w-full p-3 border rounded-lg text-sm"><option value="">選択</option>${OTHER_OPTIONS.map(v => `<option value="${v}" ${rd.detail1 === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
             else d.classList.add('hidden');
@@ -3517,13 +3517,21 @@
                     if (!rec.raw) return escapeHtml(rec['詳細']);
                     const r = rec.raw;
                     const items = [];
+                    const makeBadge = (text, type) => {
+                        let c = 'bg-emerald-50 text-emerald-700'; // Normal
+                        if (type === 'red') c = 'bg-red-50 text-red-700';
+                        else if (type === 'orange') c = 'bg-orange-50 text-orange-700';
+                        else if (type === 'blue') c = 'bg-blue-50 text-blue-700';
+                        return `<span class="${c} font-bold px-1.5 py-0.5 rounded">${text}</span>`;
+                    };
+
                     // Temp
                     if (r.temp) {
                         const v = parseFloat(r.temp);
-                        let c = 'text-gray-700';
-                        if (v >= 37.5) c = 'text-red-600 font-bold';
-                        else if (v >= 37.0) c = 'text-orange-600 font-bold';
-                        items.push(`<span class="${c}">熱: ${r.temp}</span>`);
+                        let type = 'green';
+                        if (v >= 37.5) type = 'red';
+                        else if (v >= 37.0) type = 'orange';
+                        items.push(makeBadge(`熱: ${r.temp}`, type));
                     }
                     // BP
                     if (r.bph || r.bpl) {
@@ -3531,32 +3539,32 @@
                         const l = Math.round(parseFloat(r.bpl || 0));
                         const hVal = isNaN(h) ? (r.bph || '') : h;
                         const lVal = isNaN(l) ? (r.bpl || '') : l;
-                        let c = 'text-gray-700';
-                        if (h >= 140 || l >= 90) c = 'text-red-600 font-bold';
-                        else if (h < 90) c = 'text-blue-600 font-bold';
-                        items.push(`<span class="${c}">BP: ${hVal}/${lVal}</span>`);
+                        let type = 'green';
+                        if (h >= 140 || l >= 90) type = 'red';
+                        else if (h < 90) type = 'blue';
+                        items.push(makeBadge(`BP: ${hVal}/${lVal}`, type));
                     }
                     // Pulse
                     if (r.pulse) {
                         const v = Math.round(parseFloat(r.pulse));
                         const vVal = isNaN(v) ? r.pulse : v;
-                        let c = 'text-gray-700';
-                        if (v > 100) c = 'text-red-600 font-bold';
-                        else if (v < 50) c = 'text-blue-600 font-bold';
-                        items.push(`<span class="${c}">脈: ${vVal}</span>`);
+                        let type = 'green';
+                        if (v > 100) type = 'red';
+                        else if (v < 50) type = 'blue';
+                        items.push(makeBadge(`脈: ${vVal}`, type));
                     }
                     // SpO2
                     if (r.spo2) {
                         const v = Math.round(parseFloat(r.spo2));
                         const vVal = isNaN(v) ? r.spo2 : v;
-                        let c = 'text-gray-700';
-                        if (v < 90) c = 'text-red-600 font-bold';
-                        else if (v < 94) c = 'text-orange-600 font-bold';
-                        items.push(`<span class="${c}">SpO2: ${vVal}</span>`);
+                        let type = 'green';
+                        if (v < 90) type = 'red';
+                        else if (v < 94) type = 'orange';
+                        items.push(makeBadge(`SpO2: ${vVal}`, type));
                     }
                     // Weight
                     if (r.weight) {
-                        items.push(`<span>重: ${r.weight}</span>`);
+                        items.push(makeBadge(`重: ${r.weight}`, 'green'));
                     }
 
                     if (items.length === 0) return escapeHtml(rec['詳細']);
@@ -4068,7 +4076,7 @@
                     </div>
                     <div class="flex justify-between items-center pt-3 border-t border-gray-50">
                         <div class="text-[10px] text-gray-400">記録者: ${item.recorder}</div>
-                        <button onclick="editIncident(${item.rowId})" class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition">詳細・編集</button>
+                        <button onclick="openDetailFromCache('${item.rowId}')" class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition">詳細・編集</button>
                     </div>
             `;
                 container.appendChild(card);
@@ -4079,6 +4087,18 @@
                     cb.addEventListener('change', updateSelectedCount);
                 });
                 updateSelectedCount();
+            }
+        }
+
+        // [v47 Optimization] Open Detail using Cached Data
+        function openDetailFromCache(rowId) {
+            const item = cachedIncidents.find(i => String(i.rowId) === String(rowId));
+            if (item) {
+                // viewIncidentDetail supports object directly
+                viewIncidentDetail(item);
+            } else {
+                // Fallback
+                editIncident(rowId);
             }
         }
 
