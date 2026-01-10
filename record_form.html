@@ -2736,6 +2736,14 @@
             }, 2000);
         }
 
+        function showLoading(show = true) {
+            const lo = document.querySelector('.loading-overlay');
+            if (!lo) return;
+            if (show) lo.classList.remove('hidden');
+            else lo.classList.add('hidden');
+        }
+        function hideLoading() { showLoading(false); }
+
         function handleError(e) { console.error(e); showSuccessModal('エラー', null, (typeof e === 'string' ? e : e.message)); }
 
         // [v46 Fix] Standardized Confirm Dialog
