@@ -2386,27 +2386,28 @@
                 const savedViewMode = localStorage.getItem('filter_viewMode');
                 const savedDate = localStorage.getItem('filter_currentDate');
 
-                if (savedViewMode) {
-                    APP_STATE.viewMode = savedViewMode;
-                    // Update segment button UI
-                    document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
-                    const segBtn = document.getElementById(`seg-${savedViewMode}`);
-                    if (segBtn) segBtn.classList.add('active');
+                // Set viewMode (saved or default)
+                APP_STATE.viewMode = savedViewMode || 'day';
 
-                    // Update btn-current text
-                    const btnCurrent = document.getElementById('btn-current');
-                    if (savedViewMode === 'day') btnCurrent.textContent = '今日へ';
-                    else if (savedViewMode === 'week') btnCurrent.textContent = '今週へ';
-                    else if (savedViewMode === 'month') btnCurrent.textContent = '今月へ';
-                }
-
+                // Set currentDate (saved or default)
                 if (savedDate) {
                     APP_STATE.currentDate = new Date(savedDate);
                 } else {
                     APP_STATE.currentDate = new Date();
                 }
 
+                // Update UI elements BEFORE calling updateDateRange to prevent flash
+                document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+                const segBtn = document.getElementById(`seg-${APP_STATE.viewMode}`);
+                if (segBtn) segBtn.classList.add('active');
+
+                const btnCurrent = document.getElementById('btn-current');
+                if (APP_STATE.viewMode === 'day') btnCurrent.textContent = '今日へ';
+                else if (APP_STATE.viewMode === 'week') btnCurrent.textContent = '今週へ';
+                else if (APP_STATE.viewMode === 'month') btnCurrent.textContent = '今月へ';
+
                 // Initialize date range with skipDebounce for immediate load
+                // This will update the date display text
                 updateDateRange(true);
 
                 console.log('[Debug] Switching to first user:', APP_STATE.users[0].userName);
@@ -2806,11 +2807,26 @@
         // [Fix] Debounce timeout for filter changes
         let filterTimeout = null;
 
-        // [Fix] Reload app with current filter state
+        // [Fix] Reload app with current filter state (supports all views)
         function reloadApp() {
-            const name = APP_STATE.currentUserName;
-            if (name) {
-                updateDateRange(true); // skipDebounce = true
+            // Determine current view and reload accordingly
+            const listView = document.getElementById('view-list');
+            const outputView = document.getElementById('view-output');
+            const incidentView = document.getElementById('incident-container');
+
+            if (listView && !listView.classList.contains('hidden')) {
+                // List view: reload records with current filter
+                const name = APP_STATE.currentUserName;
+                if (name) {
+                    updateDateRange(true); // skipDebounce = true
+                }
+            } else if (incidentView && !incidentView.classList.contains('hidden')) {
+                // Incident view: reload pending and history
+                if (typeof loadPendingIncidents === 'function') loadPendingIncidents();
+                if (typeof loadIncidentHistory === 'function') loadIncidentHistory();
+            } else if (outputView && !outputView.classList.contains('hidden')) {
+                // Output view: no automatic reload needed
+                console.log('[Debug] Output view active, no reload action');
             }
         }
 
