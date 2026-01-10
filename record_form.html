@@ -2412,13 +2412,6 @@
         }
 
         function loadRecords(name, isAppend = false) {
-            // [Fix] Async Guard implemented
-            // Check if already loading to prevent race conditions
-            if (APP_STATE.isLoading) {
-                console.log('[Debug] loadRecords skipped (already loading)');
-                return;
-            }
-
             console.log(`[Debug] loadRecords called for user: ${name}, isAppend: ${isAppend}`);
             const w = getWhoami();
             console.log(`[Debug] getWhoami result:`, w);
@@ -2785,6 +2778,9 @@
             document.getElementById('confirm-modal').classList.add('hidden');
         }
 
+        // [Fix] Debounce timeout for filter changes
+        let filterTimeout = null;
+
         function setGranularity(m) { APP_STATE.viewMode = m; document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active')); document.getElementById(`seg-${m}`).classList.add('active'); const b = document.getElementById('btn-current'); if (m === 'day') b.textContent = '今日へ'; else if (m === 'week') b.textContent = '今週へ'; else if (m === 'month') b.textContent = '今月へ'; updateDateRange(); }
         function setToday() { APP_STATE.currentDate = new Date(); updateDateRange(); }
         function shiftDate(d) { const dt = new Date(APP_STATE.currentDate); if (APP_STATE.viewMode === 'day') dt.setDate(dt.getDate() + d); else if (APP_STATE.viewMode === 'week') dt.setDate(dt.getDate() + (d * 7)); else if (APP_STATE.viewMode === 'month') dt.setMonth(dt.getMonth() + d); APP_STATE.currentDate = dt; updateDateRange(); }
@@ -2808,11 +2804,15 @@
             document.getElementById('custom-start').value = formatDateISO(APP_STATE.filter.startDate);
             document.getElementById('custom-end').value = formatDateISO(APP_STATE.filter.endDate);
 
-            if (APP_STATE.currentUserName) {
-                loadRecords(APP_STATE.currentUserName);
-            } else {
-                renderTable();
-            }
+            // [Fix] Debounce: Wait 300ms before loading records
+            if (filterTimeout) clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(() => {
+                if (APP_STATE.currentUserName) {
+                    loadRecords(APP_STATE.currentUserName);
+                } else {
+                    renderTable();
+                }
+            }, 300);
         }
         function toggleDetailPanel() { const p = document.getElementById('detail-panel'); const i = document.getElementById('detail-icon'); const h = p.classList.contains('hidden'); if (h) { p.classList.remove('hidden'); i.style.transform = 'rotate(180deg)'; } else { p.classList.add('hidden'); i.style.transform = 'rotate(0deg)'; } }
         function applyCustomRange() {
@@ -2825,11 +2825,14 @@
             APP_STATE.filter.startDate = new Date(s + 'T00:00:00');
             APP_STATE.filter.endDate = new Date(e + 'T23:59:59');
 
-            if (APP_STATE.currentUserName) {
-                loadRecords(APP_STATE.currentUserName);
-            }
-
-            document.getElementById('current-date-display').textContent = `${formatDateJP(APP_STATE.filter.startDate, true)} - ${formatDateJP(APP_STATE.filter.endDate, true)}`;
+            // [Fix] Debounce: Wait 300ms before loading records
+            if (filterTimeout) clearTimeout(filterTimeout);
+            filterTimeout = setTimeout(() => {
+                if (APP_STATE.currentUserName) {
+                    loadRecords(APP_STATE.currentUserName);
+                }
+                document.getElementById('current-date-display').textContent = `${formatDateJP(APP_STATE.filter.startDate, true)} - ${formatDateJP(APP_STATE.filter.endDate, true)}`;
+            }, 300);
         }
         function resetToDefault() { setGranularity('day'); setToday(); toggleDetailPanel(); }
         function formatDateJP(d, s = false) { const y = d.getFullYear(); const m = d.getMonth() + 1; const dt = d.getDate(); const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()]; return s ? `${m}/${dt}(${w})` : `${y}/${m}/${dt} (${w})`; }
