@@ -1500,12 +1500,12 @@
                 <form id="record-form" class="space-y-5"><input type="hidden" id="record-row-number"><input
                         type="hidden" id="current-mode">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">記録者 <span
+                        <div><label for="recorder-select" class="block text-xs font-bold text-gray-500 mb-1">記録者 <span
                                     class="text-red-500">*</span></label><input type="text" id="recorder-select"
                                 readonly required
                                 class="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 font-bold text-sm cursor-default focus:ring-0">
                         </div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">対象利用者</label>
+                        <div><span class="block text-xs font-bold text-gray-500 mb-1">対象利用者</span>
                             <div id="single-user-display"
                                 class="hidden p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 font-bold text-sm">
                             </div>
@@ -1520,12 +1520,12 @@
                         </div>
                     </div>
                     <div class="grid grid-cols-2 gap-4">
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">日時 <span
+                        <div><label for="record-date" class="block text-xs font-bold text-gray-500 mb-1">日時 <span
                                     class="text-red-500">*</span></label><input type="datetime-local" id="record-date"
                                 required
                                 class="w-full h-11 p-2 border border-gray-300 rounded-lg text-xs sm:text-sm text-center">
                         </div>
-                        <div><label class="block text-xs font-bold text-gray-500 mb-1">項目 <span
+                        <div><label for="record-item" class="block text-xs font-bold text-gray-500 mb-1">項目 <span
                                     class="text-red-500">*</span></label><select id="record-item" required
                                 class="w-full p-3 border border-gray-300 rounded-lg text-sm">
                                 <option value="">選択</option>
@@ -1539,7 +1539,7 @@
                     <div id="dynamic-input-area" class="hidden p-3 bg-gray-50 rounded-lg border border-gray-200">
                     </div>
                     <div class="border rounded-lg p-3 relative bg-white">
-                        <div class="flex justify-between items-center mb-2"><label
+                        <div class="flex justify-between items-center mb-2"><label for="record-content"
                                 class="block text-xs font-bold text-gray-500">経過内容</label><button type="button"
                                 onclick="openPhraseManagerModal()"
                                 class="text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded flex items-center gap-1 active:bg-indigo-100"><svg
@@ -1608,7 +1608,7 @@
         class="hidden fixed inset-0 modal-overlay flex justify-center items-center p-4 fade-in z-60">
         <div class="bg-white rounded-xl shadow-lg w-full max-w-sm p-4 text-center">
             <h3 class="font-bold text-lg mb-2">定型文を編集</h3><input type="hidden" id="edit-phrase-old-text"><input
-                type="hidden" id="edit-phrase-category"><textarea id="edit-phrase-input" rows="4"
+                type="hidden" id="edit-phrase-category"><textarea id="edit-phrase-input" rows="4" aria-label="定型文内容"
                 class="w-full p-2 border rounded-lg mb-4 text-sm"></textarea>
             <div class="flex gap-2 justify-end"><button onclick="closePhraseEditModal()"
                     class="px-4 py-2 border rounded text-sm">キャンセル</button><button onclick="submitEditPhrase()"
@@ -4754,21 +4754,21 @@
                         </div>
                     </div>
                     <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                        <label class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">状況・経過</label>
+                        <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">状況・経過</h5>
                         <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.situation || ''}</p>
                     </div>
                     ${item.cause ? `
                     <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                        <label class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">原因</label>
+                        <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">原因</h5>
                         <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.cause}</p>
                     </div>` : ''}
                     ${item.response ? `
                     <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                        <label class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">対応</label>
+                        <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">対応</h5>
                         <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.response}</p>
                     </div>` : ''}
                     <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                        <label class="text-[10px] font-bold text-blue-400 block mb-2 tracking-widest">再発防止策</label>
+                        <h5 class="text-[10px] font-bold text-blue-400 block mb-2 tracking-widest">再発防止策</h5>
                         <p class="text-sm text-blue-800 whitespace-pre-wrap font-medium">${item.prevention || '(未記入)'}</p>
                     </div>
                 `;
