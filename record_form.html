@@ -2432,13 +2432,15 @@
             // [Fix] Removed overlay spinner for list loading
             // if (!isAppend) showLoading(true);
 
-            // Hide Load More button during loading
+            // Hide Load More button during loading ONLY if not appending
             const lm = document.getElementById('load-more-container');
-            if (lm) lm.classList.add('hidden');
+            if (!isAppend && lm) lm.classList.add('hidden');
 
             const body = document.getElementById('record-list-container');
-            const reqTime = Date.now();
-            APP_STATE.lastRequestTime[name] = reqTime;
+
+            // [Fix] Initialize requestNonce if not exists
+            if (!APP_STATE.requestNonce) APP_STATE.requestNonce = 0;
+            const reqId = ++APP_STATE.requestNonce;
 
             if (!isAppend) {
                 if (body) body.innerHTML = `<div class="flex justify-center items-center py-20 w-full">${getLoaderHtml()}</div>`;
@@ -2465,8 +2467,8 @@
 
                 google.script.run
                     .withSuccessHandler(res => {
-                        // [Fix] Race Condition Check
-                        if (APP_STATE.lastRequestTime[name] !== reqTime) {
+                        // [Fix] Race Condition Check - Only process if this is the latest request
+                        if (APP_STATE.requestNonce !== reqId) {
                             console.log('[Debug] Ignoring stale request result');
                             return;
                         }
@@ -3472,7 +3474,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">日時</th>
-                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">項目・詳細</th>
+                            <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[180px]">項目・詳細</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">経過内容</th>
                             <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">記録者</th>
                             <th class="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider w-32">操作</th>
@@ -3536,15 +3538,15 @@
                         return `<span class="${c} font-bold px-1.5 py-0.5 rounded">${text}</span>`;
                     };
 
-                    // Temp & BP (Merged Line)
-                    const line1 = [];
+                    // Temp
                     if (r.temp) {
                         const v = parseFloat(r.temp);
                         let type = 'green';
                         if (v >= 37.5) type = 'red';
                         else if (v >= 37.0) type = 'orange';
-                        line1.push(makeBadge(`熱: ${r.temp}`, type));
+                        items.push(makeBadge(`熱: ${r.temp}`, type));
                     }
+                    // BP
                     if (r.bph || r.bpl) {
                         const h = Math.round(parseFloat(r.bph || 0));
                         const l = Math.round(parseFloat(r.bpl || 0));
@@ -3553,10 +3555,8 @@
                         let type = 'green';
                         if (h >= 140 || l >= 90) type = 'red';
                         else if (h < 90) type = 'blue';
-                        line1.push(makeBadge(`BP: ${hVal}/${lVal}`, type));
+                        items.push(makeBadge(`BP: ${hVal}/${lVal}`, type));
                     }
-                    if (line1.length > 0) items.push(line1.join(' ')); // Push as single string (safe HTML via makeBadge)
-
                     // Pulse
                     if (r.pulse) {
                         const v = Math.round(parseFloat(r.pulse));
@@ -3582,10 +3582,9 @@
 
                     if (items.length === 0) return escapeHtml(rec['詳細']);
 
-                    // Layout: 2 items per line or stacking
-                    return `<div class="flex flex-col text-xs leading-4 gap-0.5">
-                              <div class="flex gap-2 flex-wrap">${items.slice(0, 2).join('')}</div>
-                              <div class="flex gap-2 flex-wrap">${items.slice(2).join('')}</div>
+                    // Flex Layout: Natural wrapping based on content width
+                    return `<div class="flex flex-wrap gap-x-2 gap-y-1 text-xs leading-5">
+                              ${items.join('')}
                             </div>`;
                 };
 
@@ -5690,8 +5689,28 @@
         </div>
     </div>
     <script>
+        // Helper to show button spinner
+        function setButtonLoading(btn, isLoading) {
+            if (!btn) return;
+            if (isLoading) {
+                if (!btn.querySelector('.spinner')) {
+                    const sp = document.createElement('span');
+                    sp.className = 'spinner mr-2'; // Requires .spinner class
+                    sp.style.width = '1em'; sp.style.height = '1em'; sp.style.borderWidth = '2px';
+                    // Insert before text
+                    if (btn.firstChild) btn.insertBefore(sp, btn.firstChild);
+                    else btn.appendChild(sp);
 
-
+                    btn.disabled = true;
+                    btn.classList.add('opacity-75', 'cursor-not-allowed');
+                }
+            } else {
+                const sp = btn.querySelector('.spinner');
+                if (sp) sp.remove();
+                btn.disabled = false;
+                btn.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
     </script>
 </body>
 
