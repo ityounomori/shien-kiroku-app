@@ -2575,23 +2575,7 @@
                 sel?.addEventListener('change', (e) => { switchUser(e.target.value); resetOutputView(); });
             });
 
-            // [v40] btnMore toggle
-            // イベントリスナーの重複を避けるため、既存のリスナーがあれば削除...はDOM再生成しないと難しいので
-            // ここでは replaceWith で要素をリセットしてから登録する手法をとるか、フラグで管理する。
-            // 簡易的に要素置換方式を採用
-            const oldBtn = document.getElementById('btnMore');
-            if (oldBtn) {
-                const newBtn = oldBtn.cloneNode(true);
-                oldBtn.parentNode.replaceChild(newBtn, oldBtn);
-                newBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    const m = document.getElementById('moreMenu');
-                    if (m) m.classList.toggle('active');
-                    else console.warn('More menu not found');
-                });
-            }
-            // 初期化時にメニュー項目をセット
-            rebalanceToolbar();
+            // [v40] btnMore toggle logic removed (Toolbar flattened)
         }
 
         function toggleBodyScroll(lock) { document.body.classList.toggle('no-scroll', lock); }
