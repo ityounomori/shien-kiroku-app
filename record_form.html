@@ -3403,6 +3403,20 @@
         // ==========================================
         // 修正版 renderTable: PCはテーブル、スマホはカードで表示
         // ==========================================
+        // Update Badge Counts
+        function updateCategoryBadges(records) {
+            const counts = { 'all': records.length, '排泄': 0, '服薬': 0, 'バイタル': 0, '食事': 0, 'その他': 0 };
+            records.forEach(r => {
+                const c = r['項目'];
+                if (counts.hasOwnProperty(c)) counts[c]++;
+                else counts['その他']++;
+            });
+            Object.keys(counts).forEach(k => {
+                const el = document.getElementById('badge-' + k);
+                if (el) el.textContent = counts[k];
+            });
+        }
+
         function renderTable(records) {
             const name = APP_STATE.currentUserName;
 
@@ -3415,6 +3429,10 @@
                     displayRecords = [];
                 }
             }
+
+            // Update Badges based on ALL available records for this period (before filtering)
+            updateCategoryBadges(displayRecords);
+
 
             // 2. クライアント側フィルター適用 (項目フィルター)
             const filterItem = (APP_STATE.filter && APP_STATE.filter.item) ? APP_STATE.filter.item : 'all';
