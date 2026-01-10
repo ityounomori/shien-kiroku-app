@@ -3562,16 +3562,20 @@
                 // Spinner feedback
                 const btn = document.getElementById('confirm-ok-btn');
                 const originalText = btn.textContent;
-                // [Refactor] Use setButtonLoading
-                setButtonLoading(btn, true);
-                btn.textContent = '処理中';
+
+                // Manual Spinner Set
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
                 google.script.run.withSuccessHandler(res => {
                     closeConfirm();
+                    btn.disabled = false;
+                    btn.textContent = originalText;
+
                     showToast('success', res);
                     loadRecords(APP_STATE.currentUserName);
                 }).withFailureHandler(err => {
-                    setButtonLoading(btn, false);
+                    btn.disabled = false;
                     btn.textContent = originalText;
                     handleError(err);
                 }).deleteRecordByOffice(w.officeSelected, rn, w);
