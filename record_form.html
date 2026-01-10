@@ -2351,7 +2351,7 @@
 
                     renderWhoamiBadge();
                     switchView('list');
-                    setToday();
+
 
                     // [v37+] Setup event listeners after DOM is ready
                     setupEventListeners();
@@ -2387,6 +2387,8 @@
             });
 
             if (APP_STATE.users.length > 0) {
+                // [Fix] Initialize Date Range BEFORE loading records to prevent "All Time" fetch
+                setToday();
                 console.log('[Debug] Switching to first user:', APP_STATE.users[0].userName);
                 switchUser(APP_STATE.users[0].userName);
                 // switchUser calls loadRecords internally
@@ -3494,8 +3496,6 @@
             const totalCount = (APP_STATE.allRecords[name] || []).length;
             const hasMore = APP_STATE.hasMore[name] === true;
             const shouldShow = hasMore && totalCount >= 500;
-
-            console.log(`[Debug] renderTable: totalCount=${totalCount}, hasMore=${hasMore}, >=500=${totalCount >= 500} -> shouldShow=${shouldShow}`);
 
             // フィルタ適用中はボタンを出さない（または全件ロード済み扱いにする）運用も考えられるが、
             // ここでは「データがまだサーバーにあるなら出す」ロジックにする
