@@ -3411,6 +3411,8 @@
                 return;
             }
 
+            console.log('[Debug] renderTable displayRecords sample:', displayRecords.length, displayRecords[0]);
+
             // --- 1. PC用テーブル表示 (md以上で表示) ---
             const tableHTML = document.createElement('div');
             tableHTML.className = 'hidden md:block overflow-x-auto';
