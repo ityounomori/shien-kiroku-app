@@ -2298,6 +2298,10 @@
             APP_STATE.whoami = null;
             sessionStorage.removeItem('gas_whoami');
 
+            // [Fix] Clear filter state from localStorage
+            localStorage.removeItem('filter_viewMode');
+            localStorage.removeItem('filter_currentDate');
+
             // アプリ画面を非表示
             const av = document.getElementById('appView');
             if (av) {
@@ -2406,8 +2410,24 @@
                 else if (APP_STATE.viewMode === 'week') btnCurrent.textContent = '今週へ';
                 else if (APP_STATE.viewMode === 'month') btnCurrent.textContent = '今月へ';
 
+                // [Fix] Pre-calculate and set date display to prevent flash
+                const a = new Date(APP_STATE.currentDate); a.setHours(0, 0, 0, 0);
+                let s = new Date(a); let e = new Date(a); let displayText = "";
+                if (APP_STATE.viewMode === 'day') {
+                    displayText = formatDateJP(a);
+                } else if (APP_STATE.viewMode === 'week') {
+                    const d = a.getDay();
+                    const diff = (d === 0 ? 6 : d - 1);
+                    s.setDate(a.getDate() - diff); e = new Date(s); e.setDate(s.getDate() + 6);
+                    displayText = `${formatDateJP(s, true)} - ${formatDateJP(e, true)}`;
+                } else if (APP_STATE.viewMode === 'month') {
+                    s.setDate(1); e = new Date(s.getFullYear(), s.getMonth() + 1, 0);
+                    const y = s.getFullYear(); const m = s.getMonth() + 1; displayText = `${y}年${m}月`;
+                }
+                document.getElementById('current-date-display').textContent = displayText;
+
                 // Initialize date range with skipDebounce for immediate load
-                // This will update the date display text
+                // updateDateRange will set filter dates but display text is already set
                 updateDateRange(true);
 
                 console.log('[Debug] Switching to first user:', APP_STATE.users[0].userName);
@@ -2821,9 +2841,9 @@
                     updateDateRange(true); // skipDebounce = true
                 }
             } else if (incidentView && !incidentView.classList.contains('hidden')) {
-                // Incident view: reload pending and history
-                if (typeof loadPendingIncidents === 'function') loadPendingIncidents();
-                if (typeof loadIncidentHistory === 'function') loadIncidentHistory();
+                // Incident view: reload pending and approval lists
+                if (typeof loadIncidentPendingList === 'function') loadIncidentPendingList();
+                if (typeof loadIncidentApprovalList === 'function') loadIncidentApprovalList();
             } else if (outputView && !outputView.classList.contains('hidden')) {
                 // Output view: no automatic reload needed
                 console.log('[Debug] Output view active, no reload action');
