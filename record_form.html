@@ -2487,21 +2487,7 @@
                             renderTable();
                             console.log('[Debug] loadRecords: renderTable called');
 
-                            // Show "Load More" button only if successful and hasMore is true
-                            // Show "Load More" button only if successful and hasMore is true
-                            if (lm) {
-                                // [Fix] Strict check: hasMore AND current count >= 500
-                                const currentCount = (APP_STATE.allRecords[name] || []).length;
-                                if (res.hasMore && currentCount >= 500) {
-                                    lm.classList.remove('hidden');
-                                } else {
-                                    lm.classList.add('hidden');
-                                    // If 0 records were returned on a Load More request, force hasMore to false
-                                    if (isAppend && (!res.records || res.records.length === 0)) {
-                                        APP_STATE.hasMore[name] = false;
-                                    }
-                                }
-                            }
+                            // ボタン制御ロジックは削除 (renderTableへ委譲)
 
                         } else {
                             if (isAppend) {
@@ -3367,10 +3353,28 @@
         // 修正版 renderTable: PCはテーブル、スマホはカードで表示
         // ==========================================
         function renderTable(records) {
+            const name = APP_STATE.currentUserName;
+
+            // 1. データ取得（引数がない場合はStateから取得）
+            let displayRecords = records;
+            if (!displayRecords) {
+                if (name && APP_STATE.allRecords[name]) {
+                    displayRecords = APP_STATE.allRecords[name];
+                } else {
+                    displayRecords = [];
+                }
+            }
+
+            // 2. クライアント側フィルター適用 (項目フィルター)
+            const filterItem = APP_STATE.filter ? APP_STATE.filter.item : 'all';
+            if (filterItem && filterItem !== 'all') {
+                displayRecords = displayRecords.filter(r => r['項目'] === filterItem);
+            }
+
             const container = document.getElementById('record-list-container');
             container.innerHTML = '';
 
-            if (!records || records.length === 0) {
+            if (!displayRecords || displayRecords.length === 0) {
                 container.innerHTML = '<div class="text-center text-gray-500 py-8">記録がありません</div>';
                 toggleLoadMoreButton(false);
                 return;
@@ -3378,7 +3382,7 @@
 
             // --- 1. PC用テーブル表示 (md以上で表示) ---
             const tableHTML = document.createElement('div');
-            tableHTML.className = 'hidden md:block overflow-x-auto'; // PCのみ表示
+            tableHTML.className = 'hidden md:block overflow-x-auto';
             tableHTML.innerHTML = `
                 <table class="min-w-full bg-white border border-gray-200 divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -3390,33 +3394,28 @@
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200" id="pc-table-body">
-                        </tbody>
+                    <tbody class="bg-white divide-y divide-gray-200" id="pc-table-body"></tbody>
                 </table>
             `;
 
             // --- 2. スマホ用カード表示 (md未満で表示) ---
             const mobileHTML = document.createElement('div');
-            mobileHTML.className = 'md:hidden space-y-4'; // スマホのみ表示
+            mobileHTML.className = 'md:hidden space-y-4';
             mobileHTML.id = 'mobile-card-list';
 
-            // 行データを生成して振り分け
             const tbody = tableHTML.querySelector('#pc-table-body');
 
-            records.forEach(record => {
-                // [Fix] Data Mapping (Server (JP) -> Client (EN))
+            displayRecords.forEach(record => {
                 const timestamp = record['日付'];
                 const category = record['項目'];
                 const detail = record['詳細'];
                 const recorder = record['記録者'];
                 const rowId = record.rowNumber || record.id;
                 const tags = record.tags || '';
-
-                // 日付フォーマット
                 const dateObj = timestamp ? new Date(timestamp) : new Date();
                 const dateStr = dateObj.toLocaleDateString('ja-JP') + ' ' + dateObj.toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
 
-                // --- PC用 行生成 ---
+                // PC行
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-gray-50 transition-colors';
                 tr.innerHTML = `
@@ -3435,7 +3434,7 @@
                 `;
                 tbody.appendChild(tr);
 
-                // --- スマホ用 カード生成 ---
+                // スマホカード
                 const card = document.createElement('div');
                 card.className = 'bg-white p-4 rounded-lg shadow border border-gray-100';
                 card.innerHTML = `
@@ -3462,8 +3461,14 @@
             container.appendChild(tableHTML);
             container.appendChild(mobileHTML);
 
-            // Continuation Tokenがある場合のみボタンを表示
-            toggleLoadMoreButton(!!APP_STATE.continuationToken);
+            // 3. Load Moreボタンの制御
+            // Stateの全レコード数を確認し、500件以上かつhasMoreフラグが立っている場合のみ表示
+            const totalCount = (APP_STATE.allRecords[name] || []).length;
+            const hasMore = APP_STATE.hasMore[name] === true;
+
+            // フィルタ適用中はボタンを出さない（または全件ロード済み扱いにする）運用も考えられるが、
+            // ここでは「データがまだサーバーにあるなら出す」ロジックにする
+            toggleLoadMoreButton(hasMore && totalCount >= 500);
         }
 
         function toggleLoadMoreButton(show) {
