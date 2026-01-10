@@ -3512,19 +3512,78 @@
                 else if (category === '服薬') detailBadgeClass = "bg-blue-50 text-blue-700";
                 else if (category === 'その他') detailBadgeClass = "bg-purple-50 text-purple-700";
 
+                // Vital Custom Display Helper
+                const getVitalHtml = (rec) => {
+                    if (!rec.raw) return escapeHtml(rec['詳細']);
+                    const r = rec.raw;
+                    const items = [];
+                    // Temp
+                    if (r.temp) {
+                        const v = parseFloat(r.temp);
+                        let c = 'text-gray-700';
+                        if (v >= 37.5) c = 'text-red-600 font-bold';
+                        else if (v >= 37.0) c = 'text-orange-600 font-bold';
+                        items.push(`<span class="${c}">熱: ${r.temp}</span>`);
+                    }
+                    // BP
+                    if (r.bph || r.bpl) {
+                        const h = parseFloat(r.bph || 0);
+                        const l = parseFloat(r.bpl || 0);
+                        let c = 'text-gray-700';
+                        if (h >= 140 || l >= 90) c = 'text-red-600 font-bold';
+                        else if (h < 90) c = 'text-blue-600 font-bold';
+                        items.push(`<span class="${c}">BP: ${r.bph}/${r.bpl}</span>`);
+                    }
+                    // Pulse
+                    if (r.pulse) {
+                        const v = parseFloat(r.pulse);
+                        let c = 'text-gray-700';
+                        if (v > 100) c = 'text-red-600 font-bold';
+                        else if (v < 50) c = 'text-blue-600 font-bold';
+                        items.push(`<span class="${c}">脈: ${r.pulse}</span>`);
+                    }
+                    // SpO2
+                    if (r.spo2) {
+                        const v = parseFloat(r.spo2);
+                        let c = 'text-gray-700';
+                        if (v < 90) c = 'text-red-600 font-bold';
+                        else if (v < 94) c = 'text-orange-600 font-bold';
+                        items.push(`<span class="${c}">SpO2: ${r.spo2}</span>`);
+                    }
+                    // Weight
+                    if (r.weight) {
+                        items.push(`<span>重: ${r.weight}</span>`);
+                    }
+
+                    if (items.length === 0) return escapeHtml(rec['詳細']);
+
+                    // Layout: 2 items per line or stacking
+                    return `<div class="flex flex-col text-xs leading-4 gap-0.5">
+                              <div class="flex gap-2 flex-wrap">${items.slice(0, 2).join('')}</div>
+                              <div class="flex gap-2 flex-wrap">${items.slice(2).join('')}</div>
+                            </div>`;
+                };
+
+                let detailContent = "";
+                if (category === 'バイタル') {
+                    detailContent = getVitalHtml(record);
+                } else {
+                    if (detail) detailContent = `<span class="px-2 py-0.5 rounded text-xs font-bold ${detailBadgeClass}">${escapeHtml(detail)}</span>`;
+                }
+
                 tr.innerHTML = `
                     <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-900">${dateStr}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-gray-700">${category}</span>
-                            ${detail ? `<span class="px-2 py-0.5 rounded text-xs font-bold ${detailBadgeClass}">${escapeHtml(detail)}</span>` : ''}
+                    <td class="px-4 py-4 whitespace-nowrap text-sm align-top">
+                        <div class="flex flex-col gap-1">
+                            <span class="font-bold text-gray-700 text-xs">${category}</span>
+                            ${detailContent ? (category === 'バイタル' ? detailContent : `<div>${detailContent}</div>`) : ''}
                         </div>
                     </td>
-                    <td class="px-4 py-4 text-sm text-gray-600 max-w-md break-words">
+                    <td class="px-4 py-4 text-sm text-gray-600 max-w-md break-words align-top">
                         ${contentHtml}
                     </td>
-                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500">${escapeHtml(recorder)}</td>
-                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-500 align-top">${escapeHtml(recorder)}</td>
+                    <td class="px-4 py-4 whitespace-nowrap text-right text-sm font-medium align-top">
                         <button onclick="copyRecord('${rowId}')" class="text-teal-600 hover:text-teal-800 mx-1 p-1 hover:bg-teal-50 rounded" title="コピー"><i class="fas fa-copy"></i></button>
                         <button onclick="editRecord('${rowId}')" class="text-indigo-600 hover:text-indigo-800 mx-1 p-1 hover:bg-indigo-50 rounded" title="編集"><i class="fas fa-edit"></i></button>
                         <button onclick="deleteRecord('${rowId}')" class="text-red-600 hover:text-red-800 mx-1 p-1 hover:bg-red-50 rounded" title="削除"><i class="fas fa-trash-alt"></i></button>
@@ -5139,23 +5198,21 @@
                 setButtonLoading(btn, false);
                 txt.textContent = originalText;
 
-                if (res && res.success) {
-                    closeReturnModal();
-                    showToast('success', '記録を差し戻しました');
-                    document.getElementById('incidentDetailPanel').classList.add('hidden');
-                    loadIncidentApprovalList();
-                } else {
-                    document.getElementById('return-modal-error').textContent = res ? res.message : '認証に失敗しました';
+                // Server returns string message on success
+                closeReturnModal();
+                showToast('success', typeof res === 'string' ? res : '記録を差し戻しました');
+                document.getElementById('incidentDetailPanel').classList.add('hidden');
+                loadIncidentApprovalList();
+            }).withFailureHandler(err => {
+                setButtonLoading(btn, false);
+                txt.textContent = originalText;
+                const msg = (typeof err === 'string' ? err : err.message) || '';
+                if (msg.includes('PIN') || msg.includes('権限') || msg.includes('認証') || msg.includes('Manager')) {
+                    document.getElementById('return-modal-error').textContent = msg.replace(/^Error:\s*/i, '');
                     document.getElementById('return-modal-error').classList.remove('hidden');
+                } else {
+                    handleError(err);
                 }
-            }).withFailureHandler(err => {
-                setButtonLoading(btn, false);
-                txt.textContent = originalText;
-                handleError(err);
-            }).withFailureHandler(err => {
-                setButtonLoading(btn, false);
-                txt.textContent = originalText;
-                handleError(err);
             }).returnIncidentByOffice(w.officeSelected, rowId, w, pin, reason);
         }
         function initPdfDateInput() {
