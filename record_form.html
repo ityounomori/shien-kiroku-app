@@ -3411,11 +3411,9 @@
                 return;
             }
 
-            console.log('[Debug] renderTable displayRecords sample:', displayRecords.length, displayRecords[0]);
-
             // --- 1. PC用テーブル表示 (md以上で表示) ---
             const tableHTML = document.createElement('div');
-            tableHTML.className = 'hidden md:block overflow-x-auto';
+            tableHTML.className = 'w-full overflow-x-auto mb-4 block'; // Forced Visible
             tableHTML.innerHTML = `
                 <table class="min-w-full bg-white border border-gray-200 divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -3433,7 +3431,7 @@
 
             // --- 2. スマホ用カード表示 (md未満で表示) ---
             const mobileHTML = document.createElement('div');
-            mobileHTML.className = 'md:hidden space-y-4';
+            mobileHTML.className = 'space-y-4 block'; // Forced Visible
             mobileHTML.id = 'mobile-card-list';
 
             const tbody = tableHTML.querySelector('#pc-table-body');
