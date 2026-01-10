@@ -3493,10 +3493,13 @@
             // Stateの全レコード数を確認し、500件以上かつhasMoreフラグが立っている場合のみ表示
             const totalCount = (APP_STATE.allRecords[name] || []).length;
             const hasMore = APP_STATE.hasMore[name] === true;
+            const shouldShow = hasMore && totalCount >= 500;
+
+            console.log(`[Debug] renderTable: totalCount=${totalCount}, hasMore=${hasMore}, >=500=${totalCount >= 500} -> shouldShow=${shouldShow}`);
 
             // フィルタ適用中はボタンを出さない（または全件ロード済み扱いにする）運用も考えられるが、
             // ここでは「データがまだサーバーにあるなら出す」ロジックにする
-            toggleLoadMoreButton(hasMore && totalCount >= 500);
+            toggleLoadMoreButton(shouldShow);
         }
 
         function toggleLoadMoreButton(show) {
