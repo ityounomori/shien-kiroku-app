@@ -5152,7 +5152,11 @@
                 setButtonLoading(btn, false);
                 txt.textContent = originalText;
                 handleError(err);
-            }).returnIncidentByOffice(w.officeSelected, rowId, reason, w, pin);
+            }).withFailureHandler(err => {
+                setButtonLoading(btn, false);
+                txt.textContent = originalText;
+                handleError(err);
+            }).returnIncidentByOffice(w.officeSelected, rowId, w, pin, reason);
         }
         function initPdfDateInput() {
             const el = document.getElementById('output-month');

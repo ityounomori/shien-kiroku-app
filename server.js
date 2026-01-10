@@ -455,6 +455,9 @@ function transformRowToRecord(row, rowNumber, sheetName) {
     const v = [];
     if (row[COL_INDEX.V_TEMP - 1]) v.push(`熱:${row[COL_INDEX.V_TEMP - 1]}`);
     if (row[COL_INDEX.V_BP_HIGH - 1]) v.push(`BP:${row[COL_INDEX.V_BP_HIGH - 1]}/${row[COL_INDEX.V_BP_LOW - 1]}`);
+    if (row[COL_INDEX.V_PULSE - 1]) v.push(`脈:${row[COL_INDEX.V_PULSE - 1]}`);
+    if (row[COL_INDEX.V_SPO2 - 1]) v.push(`SpO2:${row[COL_INDEX.V_SPO2 - 1]}`);
+    if (row[COL_INDEX.V_WEIGHT - 1]) v.push(`重:${row[COL_INDEX.V_WEIGHT - 1]}`);
     detailDisplay = v.join(', ');
   } else {
     detailDisplay = d1;
