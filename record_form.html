@@ -831,10 +831,15 @@
             /* ginkgo-400 */
             transform: scale(1.1);
         }
+
+        /* [Fix] Pre-init: Hide app until filter is restored to prevent flash */
+        .pre-init #appView {
+            visibility: hidden !important;
+        }
     </style>
 </head>
 
-<body class="bg-gray-50 text-gray-800">
+<body class="bg-gray-50 text-gray-800 pre-init">
     <!-- Dedicated Sign-in View -->
     <!-- Sign-in View (Full Screen) -->
     <div id="signinView"
@@ -2031,6 +2036,58 @@
         }
         document.addEventListener('DOMContentLoaded', () => {
 
+            // [Fix] Early filter restoration to prevent flash
+            function restoreFilterEarly() {
+                try {
+                    const savedViewMode = localStorage.getItem('filter_viewMode');
+                    const savedDate = localStorage.getItem('filter_currentDate');
+
+                    if (!savedViewMode && !savedDate) return; // Nothing to restore
+
+                    // Restore viewMode
+                    const viewMode = savedViewMode || 'day';
+
+                    // Update segment buttons UI
+                    document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+                    const segBtn = document.getElementById(`seg-${viewMode}`);
+                    if (segBtn) segBtn.classList.add('active');
+
+                    // Update btn-current text
+                    const btnCurrent = document.getElementById('btn-current');
+                    if (btnCurrent) {
+                        if (viewMode === 'day') btnCurrent.textContent = '今日へ';
+                        else if (viewMode === 'week') btnCurrent.textContent = '今週へ';
+                        else if (viewMode === 'month') btnCurrent.textContent = '今月へ';
+                    }
+
+                    // Pre-calculate and set date display
+                    const currentDate = savedDate ? new Date(savedDate) : new Date();
+                    const a = new Date(currentDate); a.setHours(0, 0, 0, 0);
+                    let s = new Date(a); let e = new Date(a); let displayText = "";
+
+                    if (viewMode === 'day') {
+                        displayText = formatDateJP(a);
+                    } else if (viewMode === 'week') {
+                        const d = a.getDay();
+                        const diff = (d === 0 ? 6 : d - 1);
+                        s.setDate(a.getDate() - diff); e = new Date(s); e.setDate(s.getDate() + 6);
+                        displayText = `${formatDateJP(s, true)} - ${formatDateJP(e, true)}`;
+                    } else if (viewMode === 'month') {
+                        s.setDate(1); e = new Date(s.getFullYear(), s.getMonth() + 1, 0);
+                        const y = s.getFullYear(); const m = s.getMonth() + 1; displayText = `${y}年${m}月`;
+                    }
+
+                    const dateDisplay = document.getElementById('current-date-display');
+                    if (dateDisplay) dateDisplay.textContent = displayText;
+
+                    console.log('[Debug] Early filter restoration complete:', { viewMode, displayText });
+                } catch (e) {
+                    console.warn('[Warning] Early filter restoration failed:', e);
+                }
+            }
+
+            // Restore filter UI immediately before any data loads
+            restoreFilterEarly();
 
             if (APP_STATE.isInitialized) return; // Guard against double firing
             APP_STATE.isInitialized = true; // Mark as initialized
@@ -2277,6 +2334,9 @@
                         // Success Modal
                         showSuccessModal('認証成功', null, 'ログインしました');
 
+                        // [Fix] Remove pre-init class on signin success
+                        document.body.classList.remove('pre-init');
+
                         // Load Data
                         console.log('Starting loadAppData...');
                         loadAppData(office, false); // isReload = false (signin)
@@ -2459,6 +2519,9 @@
             const mc = document.getElementById('main-content');
             if (li) li.classList.add('hidden');
             if (mc) mc.classList.remove('hidden');
+
+            // [Fix] Remove pre-init class to show app (filter already set)
+            document.body.classList.remove('pre-init');
 
             // 下位ビューの初期化
             switchView('list');
