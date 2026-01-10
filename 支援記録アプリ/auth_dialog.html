@@ -1,0 +1,89 @@
+<!-- auth_dialog.html -->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f4f4; }
+        h3 { color: #d32f2f; border-bottom: 2px solid #d32f2f; padding-bottom: 5px; margin-top: 0; }
+        .info { background: #e3f2fd; padding: 15px; border-radius: 5px; border-left: 5px solid #1e88e5; margin-bottom: 20px; font-size: 0.9em; }
+        .step { margin-bottom: 20px; }
+        .label { font-weight: bold; margin-bottom: 5px; display: block; }
+        .btn-auth { background: #1e88e5; color: white; padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; text-decoration: none; display: inline-block; }
+        .btn-auth:hover { background: #1565c0; }
+        textarea { width: 95%; height: 80px; padding: 10px; border: 1px solid #ccc; border-radius: 5px; margin-top: 5px; }
+        .btn-save { background: #43a047; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; }
+        .btn-save:hover { background: #388e3c; }
+        #message { margin-top: 15px; padding: 10px; border-radius: 5px; font-weight: bold; }
+        .success { background: #e8f5e9; color: #2e7d32; }
+        .error { background: #ffebee; color: #d32f2f; }
+    </style>
+</head>
+<body>
+    <h3>🔑 Dropbox再認証とリフレッシュトークン設定</h3>
+    <div class="info">
+        リフレッシュトークンが失効した場合は、以下の手順で再取得し、設定してください。<br>
+        この操作はシステム全体の認証情報を更新します。
+    </div>
+
+    <div class="step">
+        <div class="label">ステップ 1: 認証URLを開き、「Offline Access Token」を取得する</div>
+        <button class="btn-auth" onclick="getAuthUrl()">認証URLを開く</button>
+    </div>
+
+    <div class="step">
+        <div class="label">ステップ 2: 取得した認証コードを貼り付ける (長い文字列)</div>
+        <textarea id="refreshTokenInput" placeholder="ここに取得した認証コードを貼り付けてください。"></textarea>
+    </div>
+
+    <button class="btn-save" onclick="saveRefreshToken()">リフレッシュトークンを保存</button>
+
+    <div id="message"></div>
+
+    <script>
+        function getAuthUrl() {
+            document.getElementById('message').className = 'success';
+            document.getElementById('message').textContent = '認証URLを取得中です...';
+            
+            google.script.run
+                .withSuccessHandler(function(url) {
+                    // 新しいタブで認証URLを開く
+                    window.open(url, '_blank'); 
+                    document.getElementById('message').className = 'success';
+                    document.getElementById('message').textContent = '新しいタブで認証URLが開きました。トークンを取得後、ステップ2に進んでください。';
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('message').className = 'error';
+                    document.getElementById('message').textContent = 'エラー: 認証URLの取得に失敗しました。クライアントIDが設定されているか確認してください。';
+                })
+                .getDropboxAuthUrl(); // auth.gs の関数
+        }
+
+        function saveRefreshToken() {
+            // ユーザーが入力するのは「認証コード」
+            const authCode = document.getElementById('refreshTokenInput').value.trim(); 
+            if (!authCode) {
+                document.getElementById('message').className = 'error';
+                document.getElementById('message').textContent = 'エラー: 認証コード（ステップ1で取得）を貼り付けてください。';
+                return;
+            }
+            
+            document.getElementById('message').className = 'success';
+            document.getElementById('message').textContent = '認証コードを送信し、リフレッシュトークン交換中です... しばらくお待ちください。';
+
+            google.script.run
+                .withSuccessHandler(function(result) {
+                    document.getElementById('message').className = 'success';
+                    document.getElementById('message').textContent = result;
+                })
+                .withFailureHandler(function(error) {
+                    document.getElementById('message').className = 'error';
+                    document.getElementById('message').textContent = 'サーバー側でエラーが発生しました: ' + error.message;
+                })
+                // ⭐ 修正点: handleAuthCodeSubmission 関数を呼び出す
+                .handleAuthCodeSubmission(authCode); 
+        }
+    </script>
+</body>
+</html>
