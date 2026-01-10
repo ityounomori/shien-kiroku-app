@@ -1034,12 +1034,12 @@
 
                 <!-- Header Controls & Tabs -->
                 <div id="header-controls-list" class="pb-2 flex flex-col gap-2 items-start">
-                    <div class="sm:hidden w-full"><select id="user-selector-sp"
+                    <div class="md:hidden w-full"><select id="user-selector-sp"
                             class="w-full p-2 bg-gray-50 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 font-medium text-gray-700"></select>
                     </div>
                     <div
-                        class="flex flex-col sm:flex-row sm:items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200 w-full sm:w-fit">
-                        <div class="flex items-center justify-between w-full sm:w-auto gap-2">
+                        class="flex flex-col md:flex-row md:items-center gap-2 bg-gray-50 p-2 rounded-lg border border-gray-200 w-full md:w-fit">
+                        <div class="flex items-center justify-between w-full md:w-auto gap-2">
                             <div class="flex bg-white rounded-md shadow-sm p-0.5 border border-gray-200 shrink-0">
                                 <button onclick="setGranularity('day')" id="seg-day"
                                     class="segment-btn active px-3 py-1.5 text-xs font-bold rounded transition">日</button>
@@ -1066,12 +1066,12 @@
                             </div>
                         </div>
                         <div
-                            class="flex items-center justify-between w-full sm:w-auto gap-2 border-t border-gray-200 pt-2 sm:border-none sm:pt-0 sm:ml-2">
+                            class="flex items-center justify-between w-full md:w-auto gap-2 border-t border-gray-200 pt-2 md:border-none md:pt-0 md:ml-2">
                             <div id="current-date-display"
-                                class="text-sm font-bold text-gray-800 truncate text-left sm:text-center px-2 sm:min-w-[140px] flex-grow sm:flex-grow-0">
+                                class="text-sm font-bold text-gray-800 truncate text-left md:text-center px-2 md:min-w-[140px] flex-grow md:flex-grow-0">
                                 2024/01/01 (月)</div>
                             <button onclick="toggleDetailPanel()"
-                                class="px-2 py-1 text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1 shrink-0 ml-auto bg-white border border-gray-200 rounded sm:bg-transparent sm:border-none">詳細
+                                class="px-2 py-1 text-xs text-gray-500 hover:text-indigo-600 flex items-center gap-1 shrink-0 ml-auto bg-white border border-gray-200 rounded md:bg-transparent md:border-none">詳細
                                 <svg id="detail-icon" class="w-3 h-3 transition-transform" fill="none"
                                     stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -1080,20 +1080,20 @@
                         </div>
                     </div>
                     <div id="detail-panel"
-                        class="hidden bg-white border border-gray-200 rounded-lg p-3 shadow-sm text-sm w-full sm:w-fit transition-all">
-                        <div class="flex flex-col sm:flex-row items-center gap-3">
-                            <div class="flex items-center gap-2 w-full sm:w-auto"><label
+                        class="hidden bg-white border border-gray-200 rounded-lg p-3 shadow-sm text-sm w-full md:w-fit transition-all">
+                        <div class="flex flex-col md:flex-row items-center gap-3">
+                            <div class="flex items-center gap-2 w-full md:w-auto"><label
                                     class="text-gray-500 text-xs font-bold shrink-0"
                                     for="custom-start">開始:</label><input type="date" id="custom-start"
-                                    class="border border-gray-300 rounded p-1 text-sm w-full sm:w-auto">
+                                    class="border border-gray-300 rounded p-1 text-sm w-full md:w-auto">
                             </div>
-                            <div class="flex items-center gap-2 w-full sm:w-auto"><label
+                            <div class="flex items-center gap-2 w-full md:w-auto"><label
                                     class="text-gray-500 text-xs font-bold shrink-0" for="custom-end">終了:</label><input
                                     type="date" id="custom-end"
-                                    class="border border-gray-300 rounded p-1 text-sm w-full sm:w-auto">
+                                    class="border border-gray-300 rounded p-1 text-sm w-full md:w-auto">
                             </div>
                             <div
-                                class="flex items-center gap-2 w-full sm:w-auto sm:ml-2 pt-2 sm:pt-0 border-t border-gray-100 sm:border-none mt-2 sm:mt-0">
+                                class="flex items-center gap-2 w-full md:w-auto md:ml-2 pt-2 md:pt-0 border-t border-gray-100 md:border-none mt-2 md:mt-0">
                                 <label class="flex items-center gap-1 cursor-pointer mr-2 hidden">
                                     <input type="checkbox" id="include-archive" class="w-4 h-4 text-indigo-600 rounded">
                                     <span class="text-xs font-bold text-gray-500">アーカイブを含める</span>
