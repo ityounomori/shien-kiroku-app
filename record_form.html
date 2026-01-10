@@ -2279,7 +2279,7 @@
 
                         // Load Data
                         console.log('Starting loadAppData...');
-                        loadAppData(office);
+                        loadAppData(office, false); // isReload = false (signin)
 
                     } else {
                         showSuccessModal('認証失敗', null, res.message);
@@ -2743,37 +2743,6 @@
             }
         }
 
-        function reloadApp() {
-            showLoading('更新中...');
-            const w = APP_STATE.whoami;
-            if (!w || !w.officeSelected) return location.reload();
-
-            // コンテキスト保存
-            const isIncident = !document.getElementById('incident-container').classList.contains('hidden');
-            let currentTab = 'pending';
-            if (isIncident) {
-                if (!document.getElementById('incidentHistorySection').classList.contains('hidden')) currentTab = 'history';
-                if (!document.getElementById('incidentApprovalSection').classList.contains('hidden')) currentTab = 'approval';
-            }
-
-            google.script.run.withSuccessHandler(data => {
-                initFullData(data); // 通常はリストビューに戻る
-
-                if (isIncident) {
-                    switchView('incident');
-                    // タブ復元
-                    if (typeof switchIncidentTab === 'function') {
-                        switchIncidentTab(currentTab);
-                    }
-                } else {
-                    // リストビュー
-                    if (APP_STATE.currentUserName) {
-                        loadRecords(APP_STATE.currentUserName);
-                    }
-                }
-                hideLoading();
-            }).withFailureHandler(handleError).getInitialDataByOffice(w.officeSelected);
-        }
 
         // [Deprecated] Duplicate definitions removed. Use global definition around L4170.
         // function showConfirmDialog...
@@ -5820,8 +5789,14 @@
         function setButtonLoading(btn, isLoading) {
             if (!btn) return;
             if (isLoading) {
+                // Hide text span
                 const textSpan = btn.querySelector('span:not(.spinner)');
                 if (textSpan) textSpan.style.display = 'none';
+
+                // [Fix] Hide icon (arrow) as well
+                const icon = btn.querySelector('i');
+                if (icon) icon.style.display = 'none';
+
                 if (!btn.querySelector('.spinner')) {
                     const sp = document.createElement('span');
                     sp.className = 'spinner mr-2'; // Requires .spinner class
@@ -5836,8 +5811,15 @@
             } else {
                 const sp = btn.querySelector('.spinner');
                 if (sp) sp.remove();
+
+                // Show text span again
                 const textSpan = btn.querySelector('span:not(.spinner)');
                 if (textSpan) textSpan.style.display = '';
+
+                // [Fix] Show icon again
+                const icon = btn.querySelector('i');
+                if (icon) icon.style.display = '';
+
                 btn.disabled = false;
                 btn.classList.remove('opacity-75', 'cursor-not-allowed');
             }
