@@ -3347,7 +3347,7 @@
             const d = document.getElementById('dynamic-input-area'); d.innerHTML = ''; d.classList.remove('hidden');
             if (cat === '排泄') d.innerHTML = `<span class="block text-xs font-bold text-gray-500 mb-1">排泄区分</span><div class="flex gap-2">${['大', '小', '無'].map(v => `<label class="flex-1 text-center cursor-pointer"><input type="radio" name="detail-input" value="${v}" class="peer sr-only" ${rd.detail1 === v ? 'checked' : ''}><div class="p-3 rounded-lg border border-gray-300 peer-checked:bg-indigo-600 peer-checked:text-white hover:bg-gray-50 text-sm font-bold transition">${v}</div></label>`).join('')}</div>`;
             else if (cat === '服薬') d.innerHTML = `<label for="detail-input-text" class="block text-xs font-bold text-gray-500 mb-1">服薬量</label><input type="text" id="detail-input-text" class="w-full p-3 border rounded-lg text-sm" placeholder="全量" value="${rd.detail1 || ''}">`;
-            else if (cat === 'バイタル') d.innerHTML = `<div class="grid grid-cols-2 gap-3">${['temp:体温(℃)', 'pulse:脈拍', 'bph:血圧(上)', 'bpl:血圧(下)', 'spo2:SPO2(%)', 'weight:体重(kg)'].map(f => { const [k, l] = f.split(':'); return `<div><label for="v-${k}" class="text-xs font-bold text-gray-500">${l}</label><input type="number" step="0.1" id="v-${k}" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" value="${rd[k] || ''}"></div>` }).join('')}</div>`;
+            else if (cat === 'バイタル') d.innerHTML = `<div class="grid grid-cols-2 gap-3">${['temp:体温(℃)', 'pulse:脈拍', 'bph:血圧(上)', 'bpl:血圧(下)', 'spo2:SPO2(%)', 'weight:体重(kg)'].map(f => { const [k, l] = f.split(':'); const step = (k === 'temp' || k === 'weight') ? '0.1' : '1'; return `<div><label for="v-${k}" class="text-xs font-bold text-gray-500">${l}</label><input type="number" step="${step}" id="v-${k}" class="w-full p-2.5 border border-gray-300 rounded-lg text-sm" value="${rd[k] || ''}"></div>` }).join('')}</div>`;
             else if (cat === '食事') d.innerHTML = `<div class="grid grid-cols-2 gap-3"><div><label for="v-meal" class="text-xs font-bold text-gray-500">摂取率(%)</label><input type="number" id="v-meal" class="w-full p-2.5 border rounded-lg text-sm" value="${rd.detail1 || ''}"></div><div><label for="v-water" class="text-xs font-bold text-gray-500">水分(ml)</label><input type="number" id="v-water" class="w-full p-2.5 border rounded-lg text-sm" value="${rd.detail2 || ''}"></div></div>`;
             else if (cat === 'その他') d.innerHTML = `<label for="detail-input-select" class="block text-xs font-bold text-gray-500 mb-1">項目</label><select id="detail-input-select" class="w-full p-3 border rounded-lg text-sm"><option value="">選択</option>${OTHER_OPTIONS.map(v => `<option value="${v}" ${rd.detail1 === v ? 'selected' : ''}>${v}</option>`).join('')}</select>`;
             else d.classList.add('hidden');
@@ -3527,28 +3527,32 @@
                     }
                     // BP
                     if (r.bph || r.bpl) {
-                        const h = parseFloat(r.bph || 0);
-                        const l = parseFloat(r.bpl || 0);
+                        const h = Math.round(parseFloat(r.bph || 0));
+                        const l = Math.round(parseFloat(r.bpl || 0));
+                        const hVal = isNaN(h) ? (r.bph || '') : h;
+                        const lVal = isNaN(l) ? (r.bpl || '') : l;
                         let c = 'text-gray-700';
                         if (h >= 140 || l >= 90) c = 'text-red-600 font-bold';
                         else if (h < 90) c = 'text-blue-600 font-bold';
-                        items.push(`<span class="${c}">BP: ${r.bph}/${r.bpl}</span>`);
+                        items.push(`<span class="${c}">BP: ${hVal}/${lVal}</span>`);
                     }
                     // Pulse
                     if (r.pulse) {
-                        const v = parseFloat(r.pulse);
+                        const v = Math.round(parseFloat(r.pulse));
+                        const vVal = isNaN(v) ? r.pulse : v;
                         let c = 'text-gray-700';
                         if (v > 100) c = 'text-red-600 font-bold';
                         else if (v < 50) c = 'text-blue-600 font-bold';
-                        items.push(`<span class="${c}">脈: ${r.pulse}</span>`);
+                        items.push(`<span class="${c}">脈: ${vVal}</span>`);
                     }
                     // SpO2
                     if (r.spo2) {
-                        const v = parseFloat(r.spo2);
+                        const v = Math.round(parseFloat(r.spo2));
+                        const vVal = isNaN(v) ? r.spo2 : v;
                         let c = 'text-gray-700';
                         if (v < 90) c = 'text-red-600 font-bold';
                         else if (v < 94) c = 'text-orange-600 font-bold';
-                        items.push(`<span class="${c}">SpO2: ${r.spo2}</span>`);
+                        items.push(`<span class="${c}">SpO2: ${vVal}</span>`);
                     }
                     // Weight
                     if (r.weight) {
@@ -3599,14 +3603,15 @@
                         <span class="text-sm text-gray-500">${dateStr}</span>
                         <span class="px-2 py-1 text-xs font-bold rounded bg-gray-100 text-gray-700">${category}</span>
                     </div>
-                    <div class="text-gray-800 mb-3">
+                    <div class="text-gray-800 mb-2 font-medium">
                         ${tags ? `<span class="text-blue-600 text-xs mr-1">[${tags}]</span>` : ''}
-                        ${escapeHtml(detail || '')}
+                        ${detailContent || ''}
                     </div>
+                    ${content ? `<div class="text-gray-600 text-sm mb-3 bg-gray-50 p-2 rounded">${contentHtml}</div>` : ''}
                     <div class="flex justify-between items-center border-t pt-2 mt-2">
                         <span class="text-xs text-gray-400">記録: ${escapeHtml(recorder)}</span>
                         <div class="flex space-x-3">
-                            <button onclick="copyText('${escapeHtml(detail || '')}')" class="text-gray-400"><i class="fas fa-copy"></i></button>
+                            <button onclick="copyText('${escapeHtml(detail || '')} ${escapeHtml(content || '')}')" class="text-gray-400"><i class="fas fa-copy"></i></button>
                             <button onclick="editRecord('${rowId}')" class="text-blue-500"><i class="fas fa-edit"></i></button>
                             <button onclick="deleteRecord('${rowId}')" class="text-red-500"><i class="fas fa-trash-alt"></i></button>
                         </div>
@@ -4948,85 +4953,10 @@
 
         // viewIncidentDetailForApproval は viewIncidentDetail に統合されたため削除
 
-        // [v44 Fix] Return Modal (Reason + PIN)
-        function returnIncident(rowId) {
-            APP_STATE.returnTargetId = rowId;
-            document.getElementById('return-reason').value = '';
-            document.getElementById('return-pin').value = '';
-            document.getElementById('return-modal-error').classList.add('hidden');
-            document.getElementById('return-modal').classList.remove('hidden');
-            setTimeout(() => document.getElementById('return-reason').focus(), 100);
-        }
 
-        function closeReturnModal() {
-            document.getElementById('return-modal').classList.add('hidden');
-            APP_STATE.returnTargetId = null;
-        }
 
-        function submitReturn() {
-            const rowId = APP_STATE.returnTargetId;
-            const reason = document.getElementById('return-reason').value;
-            const pin = document.getElementById('return-pin').value;
 
-            if (!reason.trim()) return showToast('error', '理由を入力してください');
-            if (!pin || pin.length < 4) return showToast('error', 'PINを入力してください');
 
-            const btn = document.getElementById('btn-return-submit');
-            const btnText = document.getElementById('return-submit-text');
-            // const btnLoader = document.getElementById('return-submit-loader');
-
-            const originalText = btnText.textContent;
-            // [Refactor] Use setButtonLoading
-            setButtonLoading(btn, true);
-            btnText.textContent = '処理中...';
-
-            const w = getWhoami();
-
-            // 1. Verify PIN & Role first
-            google.script.run.withSuccessHandler(res => {
-                if (!res.success) {
-                    setButtonLoading(btn, false);
-                    btnText.textContent = originalText;
-                    document.getElementById('return-modal-error').textContent = res.message || 'PIN認証失敗';
-                    document.getElementById('return-modal-error').classList.remove('hidden');
-                    return;
-                }
-                if (res.role !== 'manager') {
-                    setButtonLoading(btn, false);
-                    btnText.textContent = originalText;
-                    document.getElementById('return-modal-error').textContent = '管理者権限がありません';
-                    document.getElementById('return-modal-error').classList.remove('hidden');
-                    return;
-                }
-
-                // 2. Execute Return
-                google.script.run.withSuccessHandler(() => {
-                    setButtonLoading(btn, false);
-                    btnText.textContent = originalText; // Reset text
-                    closeReturnModal();
-                    showToast('success', '差戻しました');
-                    document.getElementById('incidentDetailPanel').classList.add('hidden');
-
-                    // Context update
-                    if (!document.getElementById('incidentHistorySection').classList.contains('hidden')) {
-                        loadIncidentHistory();
-                    } else if (!document.getElementById('incidentApprovalSection').classList.contains('hidden')) {
-                        loadIncidentApprovalList();
-                    } else {
-                        loadIncidentPendingList();
-                    }
-                }).withFailureHandler(err => {
-                    setButtonLoading(btn, false);
-                    btnText.textContent = originalText;
-                    handleError(err);
-                }).returnIncidentByOffice(w.officeSelected, rowId, w, pin, reason);
-
-            }).withFailureHandler(err => {
-                setButtonLoading(btn, false);
-                btnText.textContent = originalText;
-                handleError(err);
-            }).verifyPinOnly(w.name, pin);
-        }
 
         // [v43 Fix] PIN Auth for Approve (New Function)
         function approveIncident(rowId) {
