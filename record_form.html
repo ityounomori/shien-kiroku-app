@@ -3350,6 +3350,34 @@
         function confirmUserSelection() { document.getElementById('selected-users-display').textContent = APP_STATE.selectedUsers.length === 0 ? '(未選択)' : APP_STATE.selectedUsers.slice(0, 3).join(', ') + (APP_STATE.selectedUsers.length > 3 ? ' 他...' : ''); closeUserSelectModal(); }
 
         // ==========================================
+        // Helper Functions (renderTable用)
+        // ==========================================
+        function escapeHtml(unsafe) {
+            if (unsafe == null) return "";
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function copyText(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('success', 'テキストをコピーしました');
+            }).catch(err => {
+                console.error('Copy failed:', err);
+                showToast('error', 'コピーに失敗しました');
+            });
+        }
+
+        // editRecordラッパー (既存のopenRecordModalを呼び出す)
+        function editRecord(rowId) {
+            openRecordModal('edit', rowId);
+        }
+
+        // ==========================================
         // 修正版 renderTable: PCはテーブル、スマホはカードで表示
         // ==========================================
         function renderTable(records) {
