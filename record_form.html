@@ -65,6 +65,27 @@
 
         /* ▲▲▲ End Overrides ▲▲▲ */
 
+        /* ▼▼▼ Robust List Visibility ▼▼▼ */
+        .responsive-table-view {
+            display: none !important;
+        }
+
+        .responsive-card-view {
+            display: block !important;
+        }
+
+        @media (min-width: 768px) {
+            .responsive-table-view {
+                display: block !important;
+            }
+
+            .responsive-card-view {
+                display: none !important;
+            }
+        }
+
+        /* ▲▲▲ End List Visibility ▲▲▲ */
+
         html {
             height: 100%;
             overflow: hidden;
@@ -3413,7 +3434,8 @@
 
             // --- 1. PC用テーブル表示 (md以上で表示) ---
             const tableHTML = document.createElement('div');
-            tableHTML.className = 'w-full overflow-x-auto mb-4 block'; // Forced Visible
+            // Remove Tailwind visibility classes, use Custom Robust Class
+            tableHTML.className = 'w-full overflow-x-auto mb-4 responsive-table-view';
             tableHTML.innerHTML = `
                 <table class="min-w-full bg-white border border-gray-200 divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -3431,7 +3453,8 @@
 
             // --- 2. スマホ用カード表示 (md未満で表示) ---
             const mobileHTML = document.createElement('div');
-            mobileHTML.className = 'space-y-4 block'; // Forced Visible
+            // Remove Tailwind visibility classes, use Custom Robust Class
+            mobileHTML.className = 'space-y-4 responsive-card-view';
             mobileHTML.id = 'mobile-card-list';
 
             const tbody = tableHTML.querySelector('#pc-table-body');
