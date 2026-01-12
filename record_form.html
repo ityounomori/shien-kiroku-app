@@ -33,6 +33,83 @@
         }
     </script>
 
+    <!-- [Fix] Synchronous filter restoration to prevent flash -->
+    <script>
+            (function () {
+                try {
+                    const vm = localStorage.getItem('filter_viewMode');
+                    const cd = localStorage.getItem('filter_currentDate');
+
+                    if (!vm && !cd) return; // Nothing to restore
+
+                    // [Fix] Skip restoration if just signed in
+                    if (sessionStorage.getItem('skip_filter_restore') === 'true') {
+                        console.log('[Sync] Skipping filter restoration (just signed in)');
+                        return;
+                    }
+
+                    // Helper function for date formatting (minimal version)
+                    function formatDate(d, short) {
+                        const y = d.getFullYear();
+                        const m = d.getMonth() + 1;
+                        const dt = d.getDate();
+                        const w = ["日", "月", "火", "水", "木", "金", "土"][d.getDay()];
+                        return short ? `${m}/${dt}(${w})` : `${y}/${m}/${dt} (${w})`;
+                    }
+
+                    // Restore on DOMContentLoaded (but synchronously scheduled)
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const viewMode = vm || 'day';
+                        const currentDate = cd ? new Date(cd) : new Date();
+
+                        // Update segment buttons
+                        document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+                        const segBtn = document.getElementById(`seg-${viewMode}`);
+                        if (segBtn) segBtn.classList.add('active');
+
+                        // Update btn-current text
+                        const btnCurrent = document.getElementById('btn-current');
+                        if (btnCurrent) {
+                            if (viewMode === 'day') btnCurrent.textContent = '今日へ';
+                            else if (viewMode === 'week') btnCurrent.textContent = '今週へ';
+                            else if (viewMode === 'month') btnCurrent.textContent = '今月へ';
+                        }
+
+                        // Calculate and set date display
+                        const a = new Date(currentDate);
+                        a.setHours(0, 0, 0, 0);
+                        let s = new Date(a);
+                        let e = new Date(a);
+                        let displayText = "";
+
+                        if (viewMode === 'day') {
+                            displayText = formatDate(a, false);
+                        } else if (viewMode === 'week') {
+                            const d = a.getDay();
+                            const diff = (d === 0 ? 6 : d - 1);
+                            s.setDate(a.getDate() - diff);
+                            e = new Date(s);
+                            e.setDate(s.getDate() + 6);
+                            displayText = `${formatDate(s, true)} - ${formatDate(e, true)}`;
+                        } else if (viewMode === 'month') {
+                            s.setDate(1);
+                            e = new Date(s.getFullYear(), s.getMonth() + 1, 0);
+                            const y = s.getFullYear();
+                            const m = s.getMonth() + 1;
+                            displayText = `${y}年${m}月`;
+                        }
+
+                        const dateDisplay = document.getElementById('current-date-display');
+                        if (dateDisplay) dateDisplay.textContent = displayText;
+
+                        console.log('[Sync] Filter restored before main app init:', { viewMode, displayText });
+                    }, { once: true, capture: true }); // Run before other DOMContentLoaded handlers
+                } catch (e) {
+                    console.warn('[Sync] Filter restoration failed:', e);
+                }
+            })();
+    </script>
+
 
 
     <style>
@@ -2039,6 +2116,12 @@
             // [Fix] Early filter restoration to prevent flash
             function restoreFilterEarly() {
                 try {
+                    // [Fix] Skip restoration if just signed in  
+                    if (sessionStorage.getItem('skip_filter_restore') === 'true') {
+                        console.log('[Debug] Skipping restoreFilterEarly (just signed in)');
+                        return;
+                    }
+
                     const savedViewMode = localStorage.getItem('filter_viewMode');
                     const savedDate = localStorage.getItem('filter_currentDate');
 
@@ -2334,6 +2417,9 @@
                         // Success Modal
                         showSuccessModal('認証成功', null, 'ログインしました');
 
+                        // [Fix] Set flag to skip filter restoration (just signed in)
+                        sessionStorage.setItem('skip_filter_restore', 'true');
+
                         // [Fix] Remove pre-init class on signin success
                         document.body.classList.remove('pre-init');
 
@@ -2520,8 +2606,9 @@
             if (li) li.classList.add('hidden');
             if (mc) mc.classList.remove('hidden');
 
-            // [Fix] Remove pre-init class to show app (filter already set)
+            // [Fix] Remove pre-init class and clear skip flag
             document.body.classList.remove('pre-init');
+            sessionStorage.removeItem('skip_filter_restore');
 
             // 下位ビューの初期化
             switchView('list');
@@ -5867,10 +5954,11 @@
                     // Insert before text
                     if (btn.firstChild) btn.insertBefore(sp, btn.firstChild);
                     else btn.appendChild(sp);
-
-                    btn.disabled = true;
-                    btn.classList.add('opacity-75', 'cursor-not-allowed');
                 }
+
+                // [Fix] Always set disabled and opacity (moved out of inner if)
+                btn.disabled = true;
+                btn.classList.add('opacity-75', 'cursor-not-allowed');
             } else {
                 const sp = btn.querySelector('.spinner');
                 if (sp) sp.remove();
