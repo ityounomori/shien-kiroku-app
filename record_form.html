@@ -2445,6 +2445,9 @@
                         APP_STATE.whoami = res;
                         sessionStorage.setItem('gas_whoami', JSON.stringify(res));
 
+                        // [Fix] Set flag to skip filter restoration (just signed in) - BEFORE showMainApp
+                        sessionStorage.setItem('skip_filter_restore', 'true');
+
                         // -----------------------------------------------------
                         // 画面切り替え (Centralized)
                         // -----------------------------------------------------
@@ -2456,9 +2459,6 @@
 
                         // Success Modal
                         showSuccessModal('認証成功', null, 'ログインしました');
-
-                        // [Fix] Set flag to skip filter restoration (just signed in)
-                        sessionStorage.setItem('skip_filter_restore', 'true');
 
                         // [Fix] Remove pre-init class on signin success
                         document.body.classList.remove('pre-init');
