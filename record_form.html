@@ -4948,7 +4948,11 @@
                     // 記録者名（職員名）を正規化
                     const rNorm = norm(i.recorder);
                     const recorderMatch = (rNorm === userNameNorm);
-                    const statusMatch = (i.status === '未承認' || i.status === '差戻し' || i.status === '差戻');
+                    // [v46] Manager sees only 'Returned' in Pending tab. 'Unapproved' is in Approval tab.
+                    const isManager = (w.role === 'manager');
+                    const statusMatch = isManager
+                        ? (i.status === '差戻し' || i.status === '差戻')
+                        : (i.status === '未承認' || i.status === '差戻し' || i.status === '差戻');
 
                     // 最初の数件の判定プロセスをログ出力
                     if (idx < 5) {
@@ -5269,16 +5273,21 @@
                             }
                         }
                         if (isManager) {
-                            // 管理者は承認・差戻しが可能
-                            if (btnApprove) {
-                                btnApprove.classList.remove('hidden');
-                                btnApprove.onclick = () => approveIncident(item.rowId);
+                            // [v46] Manager: Approve/Return for 'Unapproved' only.
+                            // 'Returned' items (in Pending tab) allow Edit/Delete only.
+                            const isUnapproved = (item.status === '未承認');
+
+                            if (isUnapproved) {
+                                if (btnApprove) {
+                                    btnApprove.classList.remove('hidden');
+                                    btnApprove.onclick = () => approveIncident(item.rowId);
+                                }
+                                if (btnReturn) {
+                                    btnReturn.classList.remove('hidden');
+                                    btnReturn.onclick = () => returnIncident(item.rowId);
+                                }
                             }
-                            if (btnReturn) {
-                                btnReturn.classList.remove('hidden');
-                                btnReturn.onclick = () => returnIncident(item.rowId);
-                            }
-                            // 管理者も編集・削除可能にする（運用柔軟性のため）
+                            // 管理者も編集・削除可能にする（運用柔軟性のため、ステータス問わず）
                             if (btnEdit) {
                                 btnEdit.classList.remove('hidden');
                                 btnEdit.onclick = () => editIncident(item);
