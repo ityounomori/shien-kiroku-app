@@ -5372,34 +5372,50 @@
         // [v43 Fix] PIN Auth for Approve (New Function)
         function approveIncident(rowId) {
             console.log('[Debug] approveIncident called with rowId:', rowId);
+            // [v51] Keep modal open until approval finishes
             authenticateAction((pin) => {
                 console.log('[Debug] approveIncident callback triggered. PIN length:', pin ? pin.length : 0);
                 const w = getWhoami();
-                if (!w) { console.error('[Error] approveIncident: Whoami is null'); return; }
+                if (!w) {
+                    console.error('[Error] approveIncident: Whoami is null');
+                    closePinModal();
+                    return;
+                }
 
-                showLoading();
+                // Keep spinner on PIN button
+                const pinBtn = document.getElementById('btn-pin-auth-submit');
+
                 console.log('[Debug] Calling approveIncidentByOffice...');
+                // [Fix] Remove showLoading() to keep PIN modal visible and active
                 google.script.run.withSuccessHandler(() => {
                     console.log('[Debug] approveIncidentByOffice Success');
-                    hideLoading();
+                    setButtonLoading(pinBtn, false);
+                    closePinModal(); // Close manually on success
+
                     showToast('success', '承認しました');
                     document.getElementById('incidentDetailPanel').classList.add('hidden');
-                    loadIncidentApprovalList(); // Approval context mostly
+                    loadIncidentApprovalList();
                 }).withFailureHandler((err) => {
                     console.error('[Error] approveIncidentByOffice Failed:', err);
+                    setButtonLoading(pinBtn, false);
+                    // Do not close modal on error, show error in it?
+                    // Or close and show toast. Let's close and show toast as usual.
+                    closePinModal();
                     handleError(err);
                 }).approveIncidentByOffice(w.officeSelected, rowId, w, pin);
-            });
+            }, false); // autoClose = false
         }
 
         // [v43 Fix] Global PIN Auth Helper
-        function authenticateAction(callback) {
+        function authenticateAction(callback, autoClose = true) {
             // callback(pin)
             const w = getWhoami();
             if (!w) return showToast('error', 'サインインしてください');
 
-            console.log('[Debug] authenticateAction setting callback');
+            console.log('[Debug] authenticateAction setting callback. AutoClose:', autoClose);
             APP_STATE.authCallback = callback;
+            APP_STATE.authAutoClose = autoClose; // Store option
+
             document.getElementById('pin-modal-input').value = '';
             document.getElementById('pin-modal-error').classList.add('hidden');
             document.getElementById('pin-modal').classList.remove('hidden');
@@ -5409,6 +5425,11 @@
         function closePinModal() {
             document.getElementById('pin-modal').classList.add('hidden');
             APP_STATE.authCallback = null;
+            APP_STATE.authAutoClose = true; // Reset
+
+            // Reset button state just in case
+            const btn = document.getElementById('btn-pin-auth-submit');
+            setButtonLoading(btn, false);
         }
 
         function submitPinAuth() {
@@ -5423,18 +5444,26 @@
 
             google.script.run.withSuccessHandler(res => {
                 console.log('[Debug] verifyPinOnly result:', res);
-                setButtonLoading(btn, false);
+                // IF autoClose is false, we KEEP loading state until callback finishes (or callback handles it)
+                // But specifically for verifyPinOnly, we are done with VERIFICATION.
+                // The expected behavior:
+                // 1. Verify PIN -> Success
+                // 2. If AutoClose: Close modal, Stop spinner.
+                // 3. If ManualClose: Keep modal open, Keep spinner rotating?
+                //    Yes, let the callback assume control of the UI.
 
                 if (res && res.success) {
-                    // Check Manager Role for sensitive actions (Approval, Edit Others)
                     if (res.role !== 'manager') {
+                        setButtonLoading(btn, false);
                         document.getElementById('pin-modal-error').classList.remove('hidden');
                         document.getElementById('pin-modal-error').textContent = '管理者権限がありません';
                         return;
                     }
 
-                    // [Fix] Execute callback BEFORE closing modal (because closePinModal clears the callback)
+                    // Execute callback
                     const callback = APP_STATE.authCallback;
+                    const shouldAutoClose = (APP_STATE.authAutoClose !== false); // Default true
+
                     if (callback) {
                         console.log('[Debug] Executing authCallback...');
                         callback(pin);
@@ -5442,9 +5471,17 @@
                         console.error('[Error] APP_STATE.authCallback is missing!');
                     }
 
-                    // Close modal and clear callback (inside closePinModal)
-                    closePinModal();
+                    if (shouldAutoClose) {
+                        setButtonLoading(btn, false);
+                        closePinModal();
+                    } else {
+                        // Manual close mode: LEAVE spinner running and modal open.
+                        // Callback is responsible for closing.
+                        console.log('[Debug] AutoClose disabled. Keeping modal open.');
+                    }
+
                 } else {
+                    setButtonLoading(btn, false);
                     document.getElementById('pin-modal-error').classList.remove('hidden');
                     document.getElementById('pin-modal-error').textContent = res ? res.message : 'PINが正しくありません';
                 }
