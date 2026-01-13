@@ -5432,9 +5432,13 @@
                              <!-- Row 4: Content (Situation) -->
                             <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${r.situation || ''}</p>
                         </div>
-                        <button class="ml-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded text-xs font-bold hover:bg-indigo-100 transition shrink-0">詳細</button>
+                        <div class="flex gap-2 shrink-0 ml-2">
+                             <i class="fas fa-chevron-right text-gray-300"></i>
+                        </div>
                     `;
-                    row.onclick = () => viewIncidentDetail(r);
+                    row.onclick = () => {
+                        setTimeout(() => viewIncidentDetail(r), 0);
+                    };
                     list.appendChild(row);
                 });
             }).getIncidentsByOfficeV2(w.officeSelected);
