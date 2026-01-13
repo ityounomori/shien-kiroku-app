@@ -4357,162 +4357,7 @@
             }).deleteStaff(w.name, w.pin, name);
         }
 
-        let currentManagerTab = 'pending';
-        let cachedIncidents = [];
 
-        function changeManagerTab(tab) {
-            currentManagerTab = tab;
-            document.querySelectorAll('[id^="tab-mgr-"]').forEach(el => {
-                el.classList.remove('border-indigo-600', 'text-indigo-600');
-                el.classList.add('border-transparent', 'text-gray-500');
-            });
-            document.getElementById(`tab - mgr - ${tab} `).classList.add('border-indigo-600', 'text-indigo-600');
-            document.getElementById(`tab - mgr - ${tab} `).classList.remove('border-transparent', 'text-gray-500');
-
-            document.getElementById('mgr-status-msg').textContent = tab === 'pending' ? '表示中: 承認待ち' : '表示中: 過去100件の履歴';
-            renderManagerCards();
-        }
-
-        function renderManagerCards() {
-            const container = document.getElementById('manager-list-container');
-            container.innerHTML = '';
-
-            const w = getWhoami();
-            const isManager = w && w.role === 'manager';
-            const displayList = cachedIncidents.filter(item =>
-                currentManagerTab === 'pending' ? item.status === '未承認' : item.status === '承認済'
-            );
-
-            if (displayList.length === 0) {
-                container.innerHTML = '<div class="text-center py-20 text-gray-400 text-sm bg-white rounded-xl border border-dashed">表示する記録はありません</div>';
-                return;
-            }
-
-            displayList.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'bg-white rounded-xl border border-gray-200 shadow-sm p-4 relative hover:border-indigo-300 transition-colors';
-
-                const statusBadge = item.status === '承認済'
-                    ? '<span class="text-[10px] bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full font-bold">承認済</span>'
-                    : '<span class="10px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold">未承認</span>';
-
-                card.innerHTML = `
-                < div class="flex justify-between items-start mb-2" >
-                    <div class="flex items-center gap-2">
-                        ${(isManager && item.status === '未承認') ? `<input type="checkbox" class="approval-checkbox w-5 h-5 text-indigo-600 rounded-md border-gray-300 focus:ring-indigo-500" value="${item.rowId}">` : ''}
-                        <span class="text-xs font-bold text-gray-400 font-mono">${item.occurDate}</span>
-                    </div>
-                        ${statusBadge}
-                    </div >
-                    <div class="flex justify-between items-center mb-3">
-                        <div class="text-sm font-bold text-gray-800">${item.user} 様</div>
-                        <div class="text-[11px] font-bold bg-indigo-50 text-indigo-600 px-2 py-1 rounded-md border border-indigo-100">${item.type}</div>
-                    </div>
-                    <div class="text-xs text-gray-600 bg-gray-50 p-3 rounded-lg line-clamp-2 leading-relaxed mb-3">
-                        ${item.situation}
-                    </div>
-                    <div class="flex justify-between items-center pt-3 border-t border-gray-50">
-                        <div class="text-[10px] text-gray-400">記録者: ${item.recorder}</div>
-                        <button onclick="openDetailFromCache('${item.rowId}')" class="text-xs font-bold text-indigo-600 hover:bg-indigo-50 px-3 py-1.5 rounded-lg transition">詳細・編集</button>
-                    </div>
-            `;
-                container.appendChild(card);
-            });
-
-            if (isManager) {
-                document.querySelectorAll('.approval-checkbox').forEach(cb => {
-                    cb.addEventListener('change', updateSelectedCount);
-                });
-                updateSelectedCount();
-            }
-        }
-
-        // [v47 Optimization] Open Detail using Cached Data
-        function openDetailFromCache(rowId) {
-            const item = cachedIncidents.find(i => String(i.rowId) === String(rowId));
-            if (item) {
-                // viewIncidentDetail supports object directly
-                viewIncidentDetail(item);
-            } else {
-                // Fallback
-                editIncident(rowId);
-            }
-        }
-
-        // [v37 Fix] define renderManagerCards as alias
-        function renderManagerCards() {
-            updateManagerBadges();
-        }
-
-        function updateManagerBadges() {
-            // 未承認件数の計算とバッジ更新
-            const pendingCount = cachedIncidents.filter(i => i.status === '未承認').length;
-            const badge = document.getElementById('badge-mgr-pending');
-            if (badge) badge.textContent = pendingCount;
-
-            // 認証状態の取得
-            const w = getWhoami();
-            const isManager = w && w.role === 'manager';
-
-            // 1. 管理者認証ボタンの制御（管理者なら隠す、閲覧者なら出す）
-            const loginBtn = document.getElementById('btn-mgr-login');
-            if (loginBtn) loginBtn.classList.toggle('hidden', isManager);
-
-            // 2. 職員管理ボタンの制御（管理者なら出す、閲覧者なら隠す）
-            const staffBtn = document.getElementById('btn-mgr-staff');
-            if (staffBtn) staffBtn.classList.toggle('hidden', !isManager);
-
-            // 3. 承認実行フッターの制御（管理者なら出す、閲覧者なら隠す）
-            const footer = document.getElementById('manager-footer');
-            if (footer) footer.classList.toggle('hidden', !isManager);
-        }
-
-        function updateSelectedCount() {
-            const checked = document.querySelectorAll('.approval-checkbox:checked').length;
-            const btn = document.getElementById('btn-bulk-approve');
-            if (btn) {
-                btn.disabled = checked === 0;
-                btn.textContent = `一括承認(${checked}件)`;
-            }
-        }
-
-        async function approveSelected() {
-            const checkboxes = document.querySelectorAll('.approval-checkbox:checked');
-            if (checkboxes.length === 0) return;
-
-            const w = getWhoami();
-            const pin = window.prompt(`${checkboxes.length} 件の記録を承認します。PINを入力してください`);
-            if (!pin) return;
-
-            showLoading();
-            let successCount = 0;
-            let failCount = 0;
-
-            for (const cb of checkboxes) {
-                const rowId = cb.value;
-                try {
-                    await new Promise((resolve, reject) => {
-                        google.script.run
-                            .withSuccessHandler(resolve)
-                            .withFailureHandler(reject)
-                            .approveIncidentByOffice(w.officeSelected, rowId, w, pin);
-                    });
-                    successCount++;
-                } catch (e) {
-                    console.error('Batch approval error for row ' + rowId, e);
-                    failCount++;
-                }
-            }
-
-            hideLoading();
-            if (failCount === 0) {
-                showToast('success', `${successCount} 件を承認しました`);
-            } else {
-                showToast('info', `${successCount} 件承認成功、${failCount} 件失敗しました`);
-            }
-            loadIncidentApprovalList();
-            renderManagerCards();
-        }
 
         // -----------------------------------------------------------
         // 認証・ユーザー状態
@@ -5647,11 +5492,20 @@
         window.addEventListener('hashchange', route);
 
         // [v35 Fix] Restored loadIncidentHistory
-        function loadIncidentHistory() {
+        // [v52 Feature] History Pagination & Caching
+        function loadIncidentHistory(useCache = false) {
             const w = getWhoami();
             if (!w) return;
             const container = document.getElementById('incidentHistoryCards');
             if (!container) return console.error('History container not found');
+
+            // --- Cache Logic ---
+            // If cache requested and data exists, skip fetch
+            if (useCache && APP_STATE.history && APP_STATE.history.allData) {
+                console.log('[Debug] Using cached history data');
+                applyIncidentHistoryFilterAndRender();
+                return;
+            }
 
             // [Fix] Unified Spinner with centering wrapper
             container.innerHTML = `<div class="flex justify-center items-center py-20 w-full col-span-full">${getLoaderHtml()}</div>`;
@@ -5672,75 +5526,131 @@
                 console.log('[Debug] History data received:', data ? data.length : 0, 'items');
                 if (debug) console.log('[Debug] Server Metadata:', debug);
 
-                container.innerHTML = '';
-                // [New] Filter out 'Pending' items from History
-                // History shows 'Approved' only (as Archive). 'Pending'/'Returned' are in Pending Tab.
-                let history = (data || []).filter(item => {
+                // Init Cache Step
+                const all = data || [];
+                // Base filter logic (Exclude Pending/Returned) - Keep consistent with previous logic
+                // History shows 'Approved' only
+                const baseFiltered = all.filter(item => {
                     return item.status !== '未承認' && item.status !== '差戻し' && item.status !== '差戻';
                 }).sort((a, b) => new Date(b.occurDate) - new Date(a.occurDate));
 
-                // フィルター適用
-                const from = document.getElementById('hist-from').value;
-                const to = document.getElementById('hist-to').value;
-                const type = document.getElementById('hist-type').value;
-                const user = document.getElementById('hist-user').value;
+                APP_STATE.history = {
+                    allData: baseFiltered, // Sorted & Base Filtered
+                    filtered: [],          // After UI Filter
+                    limit: 50,
+                    rendered: 0
+                };
 
-                if (from) history = history.filter(i => new Date(i.occurDate) >= new Date(from));
-                if (to) {
-                    const toDate = new Date(to);
-                    toDate.setHours(23, 59, 59, 999);
-                    history = history.filter(i => new Date(i.occurDate) <= toDate);
-                }
-                if (type) history = history.filter(i => i.type === type);
-                if (user) {
-                    const normUser = user.toString().toLowerCase().trim();
-                    history = history.filter(i => {
-                        const targetUser = (i.user || i.userName || '').toLowerCase();
-                        return targetUser.includes(normUser);
-                    });
-                }
+                applyIncidentHistoryFilterAndRender();
 
-                console.log('[Debug] Filtered History List size:', history.length);
-
-                if (history.length === 0) {
-                    container.innerHTML = '<div class="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100">履歴（承認済）はありません</div>';
-                    return;
-                }
-
-                history.forEach(item => {
-                    const card = document.createElement('div');
-                    card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
-                    card.onclick = () => {
-                        // [Fix] Yield to main thread to allow click feedback before heavy rendering
-                        setTimeout(() => viewIncidentDetail(item), 0);
-                    };
-
-                    // Status Badge is less necessary if we only show Approved, but keeping it for Returned/Others if logic changes
-                    const statusClass = item.status === '承認済' ? 'bg-emerald-100 text-emerald-700' : ((item.status === '差戻し' || item.status === '差戻') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700');
-                    const targetUser = item.user || item.userName || '(対象者不明)';
-
-                    // Unified Card Layout
-                    card.innerHTML = `
-                                    <div class="flex-1 min-w-0">
-                                        <!-- Row 1: Status | Date -->
-                                        <div class="flex items-center gap-2 mb-1">
-                                            <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">${item.status}</span>
-                                            <span class="text-[10px] font-bold text-gray-400">${(item.occurDate || '').toString().replace('T', ' ')}</span>
-                                        </div>
-                                        <!-- Row 2: Target | Category -->
-                                        <h4 class="text-sm font-bold text-gray-800 truncate mb-1">${targetUser} / ${item.type}</h4>
-                                        <!-- Row 3: Recorder -->
-                                        <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${item.recorder || '(不明)'}</div>
-                                        <!-- Row 4: Content (Situation) -->
-                                        <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${item.situation || ''}</p>
-                                    </div>
-                                    <div class="text-xs text-gray-400 shrink-0 ml-2">
-                                        <i class="fas fa-chevron-right"></i>
-                                    </div>
-                                `;
-                    container.appendChild(card);
-                });
             }).getIncidentsByOfficeV2(w.officeSelected);
+        }
+
+        function applyIncidentHistoryFilterAndRender() {
+            if (!APP_STATE.history) return;
+
+            const container = document.getElementById('incidentHistoryCards');
+            container.innerHTML = '';
+
+            // フィルター適用
+            const from = document.getElementById('hist-from').value;
+            const to = document.getElementById('hist-to').value;
+            const type = document.getElementById('hist-type').value;
+            const user = document.getElementById('hist-user').value;
+
+            let result = APP_STATE.history.allData; // Already sorted & base filtered
+
+            if (from) result = result.filter(i => new Date(i.occurDate) >= new Date(from));
+            if (to) {
+                const toDate = new Date(to);
+                toDate.setHours(23, 59, 59, 999);
+                result = result.filter(i => new Date(i.occurDate) <= toDate);
+            }
+            if (type) result = result.filter(i => i.type === type);
+            if (user) {
+                const normUser = user.toString().toLowerCase().trim();
+                result = result.filter(i => {
+                    const targetUser = (i.user || i.userName || '').toLowerCase();
+                    return targetUser.includes(normUser);
+                });
+            }
+
+            console.log('[Debug] Filtered History List size:', result.length);
+
+            // Update State
+            APP_STATE.history.filtered = result;
+            APP_STATE.history.rendered = 0; // Reset rendered count
+
+            if (result.length === 0) {
+                container.innerHTML = '<div class="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100 col-span-full">履歴（承認済）はありません</div>';
+                return;
+            }
+
+            renderHistoryBatch();
+        }
+
+        function renderHistoryBatch() {
+            const h = APP_STATE.history;
+            const container = document.getElementById('incidentHistoryCards');
+
+            // Remove existing "Load More" button container
+            const btnContainer = document.getElementById('btn-hist-load-more-container');
+            if (btnContainer) btnContainer.remove();
+
+            // Slice next batch
+            const nextBatch = h.filtered.slice(h.rendered, h.rendered + h.limit);
+            if (nextBatch.length === 0) return;
+
+            nextBatch.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
+                card.onclick = () => {
+                    // [Fix] Yield to main thread to allow click feedback before heavy rendering
+                    setTimeout(() => viewIncidentDetail(item), 0);
+                };
+
+                const statusClass = item.status === '承認済' ? 'bg-emerald-100 text-emerald-700' : ((item.status === '差戻し' || item.status === '差戻') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700');
+                const targetUser = item.user || item.userName || '(対象者不明)';
+
+                // Unified Card Layout
+                card.innerHTML = `
+                                <div class="flex-1 min-w-0">
+                                    <!-- Row 1: Status | Date -->
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">${item.status}</span>
+                                        <span class="text-[10px] font-bold text-gray-400">${(item.occurDate || '').toString().replace('T', ' ')}</span>
+                                    </div>
+                                    <!-- Row 2: Target | Category -->
+                                    <h4 class="text-sm font-bold text-gray-800 truncate mb-1">${targetUser} / ${item.type}</h4>
+                                    <!-- Row 3: Recorder -->
+                                    <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${item.recorder || '(不明)'}</div>
+                                    <!-- Row 4: Content (Situation) -->
+                                    <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${item.situation || ''}</p>
+                                </div>
+                                <div class="text-xs text-gray-400 shrink-0 ml-2">
+                                    <i class="fas fa-chevron-right"></i>
+                                </div>
+                            `;
+                container.appendChild(card);
+            });
+
+            h.rendered += nextBatch.length;
+
+            // Check if more items exist
+            if (h.rendered < h.filtered.length) {
+                const remaining = h.filtered.length - h.rendered;
+                const nextLoad = Math.min(remaining, h.limit);
+
+                const moreDiv = document.createElement('div');
+                moreDiv.id = 'btn-hist-load-more-container';
+                moreDiv.className = 'col-span-full flex justify-center py-6';
+                moreDiv.innerHTML = `<button onclick="renderHistoryBatch()" class="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                        <span>もっと見る</span>
+                                        <span class="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">${remaining}件</span>
+                                        <i class="fas fa-chevron-down text-xs"></i>
+                                     </button>`;
+                container.appendChild(moreDiv);
+            }
         }
 
         // [v37+] showToast using existing success-modal
