@@ -5007,23 +5007,18 @@
             }).getIncidentsByOfficeV2(w.officeSelected);
         }
 
-        async function editIncident(rowId) {
+        async function editIncident(itemOrRowId) {
             const w = getWhoami();
             if (!w) return;
-            showLoading();
 
-            // 最新のV2関数を使用してデータを取得
-            google.script.run.withSuccessHandler(response => {
-                hideLoading();
-
-                const data = (response && response.data) ? response.data : (Array.isArray(response) ? response : []);
-                const item = data.find(i => String(i.rowId) === String(rowId));
-
+            // [Fix] Shared logic for processing the item to edit
+            const proceedWithItem = (item) => {
                 if (!item) return showToast('データが見つかりません', 'error');
 
                 // 自分の記録か判定（正規化して比較）
                 const norm = s => (s || '').toString().replace(/[\s\u3000]+/g, '').toLowerCase();
                 const isMyRecord = norm(item.recorder) === norm(w.name);
+                const rowId = item.rowId;
 
                 // シンプルフォームに値をセットして開く処理
                 const proceedToEdit = () => {
@@ -5053,12 +5048,7 @@
                     document.getElementById('inc-simple-response').value = item.response || '';
                     document.getElementById('inc-simple-prevention').value = item.prevention || '';
 
-                    // 編集のために開くが、スナップショットを取る
-                    // openIncidentSimpleModalは新規用初期化を含んでいるため、
-                    // ここで必要な処理（リスナー登録など）だけ呼ぶか、openをカスタマイズする必要がある。
-                    // 現状の editIncident は proceedToEdit で openIncidentSimpleModal を呼んでから値を上書きしているので、
-                    // 最後にスナップショットを更新すればOK。
-
+                    // スナップショット更新
                     APP_STATE.incidentSnapshot = JSON.stringify(getIncidentFormData());
                     checkIncidentChange();
                 };
@@ -5073,7 +5063,24 @@
                         proceedToEdit();
                     });
                 }
-            }).getIncidentsByOfficeV2(w.officeSelected);
+            };
+
+            // [Fix] Check if object passed directly
+            if (typeof itemOrRowId === 'object' && itemOrRowId !== null) {
+                console.log('[Debug] editIncident using passed object');
+                // No loading needed
+                proceedWithItem(itemOrRowId);
+            } else {
+                // Fetch from server (Old behavior)
+                console.log('[Debug] editIncident fetching by ID:', itemOrRowId);
+                showLoading();
+                google.script.run.withSuccessHandler(response => {
+                    hideLoading();
+                    const data = (response && response.data) ? response.data : (Array.isArray(response) ? response : []);
+                    const item = data.find(i => String(i.rowId) === String(itemOrRowId));
+                    proceedWithItem(item);
+                }).getIncidentsByOfficeV2(w.officeSelected);
+            }
         }
 
         function closeConfirm() {
@@ -5255,7 +5262,7 @@
                             if (btnEdit) {
                                 btnEdit.classList.remove('hidden');
                                 btnEdit.onclick = () => {
-                                    editIncident(item.rowId);
+                                    editIncident(item);
                                 };
                             }
                             if (btnDelete) {
@@ -5276,7 +5283,7 @@
                             // 管理者も編集・削除可能にする（運用柔軟性のため）
                             if (btnEdit) {
                                 btnEdit.classList.remove('hidden');
-                                btnEdit.onclick = () => editIncident(item.rowId);
+                                btnEdit.onclick = () => editIncident(item);
                             }
                             if (btnDelete) {
                                 btnDelete.classList.remove('hidden');
@@ -5290,7 +5297,7 @@
                             // [New] 管理者は承認済でも編集・削除・差戻しが可能（誤承認対応）
                             if (btnEdit) {
                                 btnEdit.classList.remove('hidden');
-                                btnEdit.onclick = () => editIncident(item.rowId);
+                                btnEdit.onclick = () => editIncident(item);
                             }
                             if (btnDelete) {
                                 btnDelete.classList.remove('hidden');
