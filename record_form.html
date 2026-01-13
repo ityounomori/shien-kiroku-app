@@ -5371,15 +5371,24 @@
 
         // [v43 Fix] PIN Auth for Approve (New Function)
         function approveIncident(rowId) {
+            console.log('[Debug] approveIncident called with rowId:', rowId);
             authenticateAction((pin) => {
+                console.log('[Debug] approveIncident callback triggered. PIN length:', pin ? pin.length : 0);
                 const w = getWhoami();
+                if (!w) { console.error('[Error] approveIncident: Whoami is null'); return; }
+
                 showLoading();
+                console.log('[Debug] Calling approveIncidentByOffice...');
                 google.script.run.withSuccessHandler(() => {
+                    console.log('[Debug] approveIncidentByOffice Success');
                     hideLoading();
                     showToast('success', '承認しました');
                     document.getElementById('incidentDetailPanel').classList.add('hidden');
                     loadIncidentApprovalList(); // Approval context mostly
-                }).withFailureHandler(handleError).approveIncidentByOffice(w.officeSelected, rowId, w, pin);
+                }).withFailureHandler((err) => {
+                    console.error('[Error] approveIncidentByOffice Failed:', err);
+                    handleError(err);
+                }).approveIncidentByOffice(w.officeSelected, rowId, w, pin);
             });
         }
 
@@ -5389,6 +5398,7 @@
             const w = getWhoami();
             if (!w) return showToast('error', 'サインインしてください');
 
+            console.log('[Debug] authenticateAction setting callback');
             APP_STATE.authCallback = callback;
             document.getElementById('pin-modal-input').value = '';
             document.getElementById('pin-modal-error').classList.add('hidden');
@@ -5405,6 +5415,7 @@
             const pin = document.getElementById('pin-modal-input').value;
             if (!pin || pin.length < 4) return;
 
+            console.log('[Debug] submitPinAuth starting...');
             const w = getWhoami();
             const btn = document.getElementById('btn-pin-auth-submit');
             const originalText = btn.textContent;
@@ -5413,24 +5424,34 @@
             btn.textContent = '確認中...';
 
             google.script.run.withSuccessHandler(res => {
+                console.log('[Debug] verifyPinOnly result:', res);
                 setButtonLoading(btn, false);
                 btn.textContent = originalText;
                 if (res && res.success) {
                     // Check Manager Role for sensitive actions (Approval, Edit Others)
-                    // Currently authenticateAction is used for Edit(Others) and Approve. Both need Manager.
                     if (res.role !== 'manager') {
                         document.getElementById('pin-modal-error').classList.remove('hidden');
                         document.getElementById('pin-modal-error').textContent = '管理者権限がありません';
                         return;
                     }
 
+                    // [Fix] Execute callback BEFORE closing modal (because closePinModal clears the callback)
+                    const callback = APP_STATE.authCallback;
+                    if (callback) {
+                        console.log('[Debug] Executing authCallback...');
+                        callback(pin);
+                    } else {
+                        console.error('[Error] APP_STATE.authCallback is missing!');
+                    }
+
+                    // Close modal and clear callback (inside closePinModal)
                     closePinModal();
-                    if (APP_STATE.authCallback) APP_STATE.authCallback(pin);
                 } else {
                     document.getElementById('pin-modal-error').classList.remove('hidden');
                     document.getElementById('pin-modal-error').textContent = res ? res.message : 'PINが正しくありません';
                 }
             }).withFailureHandler(err => {
+                console.error('[Error] verifyPinOnly failed:', err);
                 setButtonLoading(btn, false);
                 btn.textContent = originalText;
                 handleError(err);
