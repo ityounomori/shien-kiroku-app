@@ -103,6 +103,10 @@
                         if (dateDisplay) dateDisplay.textContent = displayText;
 
                         console.log('[Sync] Filter restored before main app init:', { viewMode, displayText });
+
+                        // [Fix] Show UI immediately after restoring DOM (don't wait for server)
+                        document.body.classList.remove('pre-init');
+
                     }, { once: true, capture: true }); // Run before other DOMContentLoaded handlers
                 } catch (e) {
                     console.warn('[Sync] Filter restoration failed:', e);
@@ -2357,8 +2361,28 @@
                 }
 
                 // 2. Show App Container
+                // 2. Show App Container
                 const av = document.getElementById('appView');
                 if (av) {
+                    // [Fix] Force set "Today" before showing app to prevent flash
+                    // (Only if signing in, not reloading. Reload handles this in head script)
+                    if (sessionStorage.getItem('skip_filter_restore') === 'true') {
+                        const today = new Date();
+                        const y = today.getFullYear();
+                        const m = today.getMonth() + 1;
+                        const dt = today.getDate();
+                        const w = ["日", "月", "火", "水", "木", "金", "土"][today.getDay()];
+                        const disp = `${y}/${m}/${dt} (${w})`;
+
+                        const dateDisplay = document.getElementById('current-date-display');
+                        if (dateDisplay) dateDisplay.textContent = disp;
+
+                        // Ensure "day" tab is active
+                        document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+                        const segBtn = document.getElementById('seg-day');
+                        if (segBtn) segBtn.classList.add('active');
+                    }
+
                     av.classList.remove('hidden');
                     av.style.display = 'flex';
                 }
@@ -2447,6 +2471,17 @@
             // [Fix] Clear filter state from localStorage
             localStorage.removeItem('filter_viewMode');
             localStorage.removeItem('filter_currentDate');
+
+            // [Fix] Reset DOM elements to prevent flash on next signin
+            const dateDisplay = document.getElementById('current-date-display');
+            if (dateDisplay) dateDisplay.textContent = '';
+
+            document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
+            const defaultSeg = document.getElementById('seg-day');
+            if (defaultSeg) defaultSeg.classList.add('active'); // Default to day
+
+            const btnCurrent = document.getElementById('btn-current');
+            if (btnCurrent) btnCurrent.textContent = '今日へ';
 
             // アプリ画面を非表示
             const av = document.getElementById('appView');
