@@ -5099,7 +5099,8 @@
 
             // Reset button state (Critical fix for "stuck" processing buttons)
             newBtn.disabled = false;
-            newBtn.textContent = 'OK';
+            // [Fix] Wrap text in span for setButtonLoading compatibility
+            newBtn.innerHTML = '<span>OK</span>';
             newBtn.className = "px-6 py-2 bg-indigo-600 text-white font-bold rounded-lg hover:bg-indigo-700 transition";
 
             newBtn.addEventListener('click', () => {
@@ -5113,10 +5114,8 @@
         function deleteIncident(rowId) {
             showConfirmDialog('削除確認', 'この報告書を削除しますか？\n（ゴミ箱へ移動します）', () => {
                 const btn = document.getElementById('confirm-ok-btn');
-                const originalText = btn.textContent;
-                // [Refactor] Use setButtonLoading
+                // [Refactor] Use setButtonLoading (Text is handled by spinner CSS/logic)
                 setButtonLoading(btn, true);
-                btn.textContent = '処理中'; // Spinner is appended by setButtonLoading
 
                 const w = getWhoami();
                 google.script.run.withSuccessHandler((res) => {
@@ -5135,7 +5134,6 @@
                     }
                 }).withFailureHandler((err) => {
                     setButtonLoading(btn, false);
-                    btn.textContent = originalText;
                     handleError(err);
                 }).deleteIncidentByOffice(w.officeSelected, rowId, w);
             }, true); // manualClose = true
