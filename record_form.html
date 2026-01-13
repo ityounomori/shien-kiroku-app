@@ -6152,7 +6152,8 @@
                     // [Fix] Use Tailwind animate-spin and border-current for auto-coloring
                     // h-4 w-4 (1rem), border-2, rounded-full
                     // border-current sets color to text color, border-t-transparent creates the "C" shape
-                    sp.className = 'spinner-loader animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2';
+                    // [Fix] Add 'inline-block' to prevent collapsing in non-flex buttons
+                    sp.className = 'spinner-loader inline-block animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent mr-2';
                     // No manual style needed
                     // Insert before text
                     if (btn.firstChild) btn.insertBefore(sp, btn.firstChild);
