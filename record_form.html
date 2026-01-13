@@ -2483,6 +2483,18 @@
             const btnCurrent = document.getElementById('btn-current');
             if (btnCurrent) btnCurrent.textContent = '今日へ';
 
+            // [Fix] Clear list containers to prevent flash of old data
+            const containers = [
+                'record-list-container',
+                'incidentPendingCards',
+                'incidentHistoryCards',
+                'incidentApprovalList'
+            ];
+            containers.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = '';
+            });
+
             // アプリ画面を非表示
             const av = document.getElementById('appView');
             if (av) {
