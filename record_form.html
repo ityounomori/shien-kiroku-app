@@ -5087,11 +5087,13 @@
                     checkIncidentChange();
                 };
 
-                if (isMyRecord) {
-                    // 自分の記録なら即編集
+                // [v50] Skip PIN for Manager edit (User request: Edit button shouldn't prompt PIN like Approval)
+                // Manager role is already verified by login.
+                if (isMyRecord || w.role === 'manager') {
+                    // 自分の記録、または管理者なら即編集
                     proceedToEdit();
                 } else {
-                    // 他人の記録なら認証を通す
+                    // 一般職員が他人の記録を編集しようとした場合（基本ありえないが念のため）
                     authenticateAction(() => {
                         showToast('管理者認証成功', 'success');
                         proceedToEdit();
