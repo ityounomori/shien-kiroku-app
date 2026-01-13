@@ -5137,11 +5137,15 @@
         async function viewIncidentDetail(itemOrRowId) {
             console.log('[Debug] viewIncidentDetail called with:', itemOrRowId, 'Type:', typeof itemOrRowId);
             const w = getWhoami();
-            showLoading();
+
+            // [Fix] Show loading ONLY if we need to fetch from server
+            const needsFetch = (typeof itemOrRowId === 'string' || typeof itemOrRowId === 'number');
+            if (needsFetch) showLoading();
+
             const callback = (item) => {
                 try {
                     console.log('[Debug] viewIncidentDetail callback received item:', item);
-                    hideLoading();
+                    if (needsFetch) hideLoading();
 
                     // サーバー側からの明示的なエラーハンドリング
                     if (item && item._error) {
@@ -5173,51 +5177,54 @@
 
                     // コンテンツ生成
                     console.log('[Debug] Generating HTML content...');
-                    content.innerHTML = `
-                    <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex justify-between items-start mb-4">
-                        <div>
-                            <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">報告種別</p>
-                            <h4 class="text-lg font-bold text-indigo-800">${item.type}</h4>
+                    // Use requestAnimationFrame to ensure smooth rendering
+                    requestAnimationFrame(() => {
+                        content.innerHTML = `
+                        <div class="bg-indigo-50/50 p-4 rounded-xl border border-indigo-100 flex justify-between items-start mb-4">
+                            <div>
+                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">報告種別</p>
+                                <h4 class="text-lg font-bold text-indigo-800">${item.type}</h4>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">発生日時</p>
+                                <p class="text-sm font-bold text-indigo-800">${(item.occurDate || '').replace('T', ' ')}</p>
+                            </div>
                         </div>
-                        <div class="text-right">
-                            <p class="text-[10px] font-bold text-indigo-400 uppercase tracking-widest">発生日時</p>
-                            <p class="text-sm font-bold text-indigo-800">${(item.occurDate || '').replace('T', ' ')}</p>
+                        ${item.place ? `
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mb-4">
+                            <p class="text-[10px] text-gray-400 font-bold mb-1">場所</p>
+                            <p class="text-sm font-bold text-gray-800">${item.place}</p>
+                        </div>` : ''}
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                                <p class="text-[10px] text-gray-400 font-bold mb-1">対象者</p>
+                                <p class="text-sm font-bold">${item.userName || item.user} 様</p>
+                            </div>
+                            <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
+                                <p class="text-[10px] text-gray-400 font-bold mb-1">記録者</p>
+                                <p class="text-sm font-bold">${item.recorder}</p>
+                            </div>
                         </div>
-                    </div>
-                    ${item.place ? `
-                    <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm mb-4">
-                        <p class="text-[10px] text-gray-400 font-bold mb-1">場所</p>
-                        <p class="text-sm font-bold text-gray-800">${item.place}</p>
-                    </div>` : ''}
-                    <div class="grid grid-cols-2 gap-4 mb-4">
-                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-                            <p class="text-[10px] text-gray-400 font-bold mb-1">対象者</p>
-                            <p class="text-sm font-bold">${item.userName || item.user} 様</p>
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                            <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">状況・経過</h5>
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.situation || ''}</p>
                         </div>
-                        <div class="bg-white p-3 rounded-lg border border-gray-100 shadow-sm">
-                            <p class="text-[10px] text-gray-400 font-bold mb-1">記録者</p>
-                            <p class="text-sm font-bold">${item.recorder}</p>
+                        ${item.cause ? `
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                            <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">原因</h5>
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.cause}</p>
+                        </div>` : ''}
+                        ${item.response ? `
+                        <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
+                            <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">対応</h5>
+                            <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.response}</p>
+                        </div>` : ''}
+                        <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                            <h5 class="text-[10px] font-bold text-blue-400 block mb-2 tracking-widest">再発防止策</h5>
+                            <p class="text-sm text-blue-800 whitespace-pre-wrap font-medium">${item.prevention || '(未記入)'}</p>
                         </div>
-                    </div>
-                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                        <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">状況・経過</h5>
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.situation || ''}</p>
-                    </div>
-                    ${item.cause ? `
-                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                        <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">原因</h5>
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.cause}</p>
-                    </div>` : ''}
-                    ${item.response ? `
-                    <div class="bg-white p-4 rounded-xl border border-gray-100 shadow-sm mb-4">
-                        <h5 class="text-[10px] font-bold text-gray-400 block mb-2 tracking-widest">対応</h5>
-                        <p class="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">${item.response}</p>
-                    </div>` : ''}
-                    <div class="bg-blue-50/50 p-4 rounded-xl border border-blue-100">
-                        <h5 class="text-[10px] font-bold text-blue-400 block mb-2 tracking-widest">再発防止策</h5>
-                        <p class="text-sm text-blue-800 whitespace-pre-wrap font-medium">${item.prevention || '(未記入)'}</p>
-                    </div>
-                `;
+                    `;
+                    });
 
                     // フッターボタン制御
                     const btnEdit = document.getElementById('btnEdit');
@@ -5301,7 +5308,7 @@
                 }
             };
 
-            if (typeof itemOrRowId === 'string' || typeof itemOrRowId === 'number') {
+            if (needsFetch) {
                 google.script.run.withSuccessHandler(callback).getIncidentByIdV3(w.officeSelected, String(itemOrRowId));
             } else {
                 callback(itemOrRowId);
