@@ -5424,8 +5424,9 @@
                              <!-- Row 4: Content (Situation) -->
                             <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${r.situation || ''}</p>
                         </div>
-                        <button onclick="viewIncidentDetail('${r.rowId}')" class="ml-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded text-xs font-bold hover:bg-indigo-100 transition shrink-0">詳細</button>
+                        <button class="ml-2 px-3 py-1 bg-indigo-50 text-indigo-600 rounded text-xs font-bold hover:bg-indigo-100 transition shrink-0">詳細</button>
                     `;
+                    row.onclick = () => viewIncidentDetail(r);
                     list.appendChild(row);
                 });
             }).getIncidentsByOfficeV2(w.officeSelected);
@@ -5596,7 +5597,7 @@
                 history.forEach(item => {
                     const card = document.createElement('div');
                     card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
-                    card.onclick = () => viewIncidentDetail(item.rowId || item); // 閲覧モード
+                    card.onclick = () => viewIncidentDetail(item); // 閲覧モード（オブジェクト渡しで高速化）
 
                     // Status Badge is less necessary if we only show Approved, but keeping it for Returned/Others if logic changes
                     const statusClass = item.status === '承認済' ? 'bg-emerald-100 text-emerald-700' : ((item.status === '差戻し' || item.status === '差戻') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700');
