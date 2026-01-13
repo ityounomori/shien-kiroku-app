@@ -4945,22 +4945,19 @@
 
                 // 自分の未承認 or 差戻しのみ抽出
                 const pending = (data || []).filter((i, idx) => {
-                    // 記録者名（職員名）を正規化
-                    const rNorm = norm(i.recorder);
-                    const recorderMatch = (rNorm === userNameNorm);
-                    // [v46] Manager sees only 'Returned' in Pending tab. 'Unapproved' is in Approval tab.
+                    // [v47] Filter Logic
+                    // Manager: Shows ALL 'Returned' incidents (to track all corrections).
+                    // Staff: Shows OWN 'Unapproved' + 'Returned' incidents.
                     const isManager = (w.role === 'manager');
-                    const statusMatch = isManager
-                        ? (i.status === '差戻し' || i.status === '差戻')
-                        : (i.status === '未承認' || i.status === '差戻し' || i.status === '差戻');
 
-                    // 最初の数件の判定プロセスをログ出力
-                    if (idx < 5) {
-                        console.log(`[Debug] Record #${idx} - DB Name: "${i.recorder}" -> Norm: "${rNorm}"`);
-                        console.log(`[Debug] Result - Name Match: ${recorderMatch}, Status: "${i.status}" (Match: ${statusMatch})`);
+                    if (isManager) {
+                        return (i.status === '差戻し' || i.status === '差戻');
+                    } else {
+                        // Staff Logic
+                        const rNorm = norm(i.recorder);
+                        const recorderMatch = (rNorm === userNameNorm);
+                        return recorderMatch && (i.status === '未承認' || i.status === '差戻し' || i.status === '差戻');
                     }
-
-                    return recorderMatch && statusMatch;
                 });
 
                 console.log('[Debug] Final Filtered Pending List size:', pending.length);
