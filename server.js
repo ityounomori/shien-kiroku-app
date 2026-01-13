@@ -734,7 +734,9 @@ function addIncidentByOffice(officeName, data, whoami) {
     data.prevention,                    // 11. 再発防止策
     '未承認',                           // 12. ステータス (初期値)
     '',                                 // 13. 承認者
-    ''                                  // 14. 承認日時
+    '',                                 // 14. 承認日時
+    '',                                 // 15. 差戻し理由
+    ''                                  // 16. 差戻し日時
   ];
 
   sheet.appendRow(row);
@@ -797,7 +799,7 @@ function updateIncidentByOffice(officeName, rowId, data, whoami) {
   const files = getFilesByOffice(officeName);
   const sheet = SpreadsheetApp.openById(files.incidentFileId).getSheetByName('incidents');
 
-  const range = sheet.getRange(rowId, 1, 1, 14);
+  const range = sheet.getRange(rowId, 1, 1, 16);
   const current = range.getValues()[0];
   const originalRecorder = current[3];
 
@@ -817,6 +819,9 @@ function updateIncidentByOffice(officeName, rowId, data, whoami) {
   row[11] = '未承認';
   row[12] = '';
   row[13] = '';
+  // 修正されたら差戻し理由と日時もクリア
+  row[14] = '';
+  row[15] = '';
 
   range.setValues([row]);
 
@@ -984,7 +989,9 @@ function getIncidentsByOfficeV2(officeName) {
         prevention: String(r[10] || ''),
         status: (r[11] || '未承認').toString().trim(),
         approver: String(r[12] || ''),
-        approvedAt: r[13] instanceof Date ? Utilities.formatDate(r[13], "JST", "yyyy/MM/dd HH:mm") : String(r[13] || '')
+        approvedAt: r[13] instanceof Date ? Utilities.formatDate(r[13], "JST", "yyyy/MM/dd HH:mm") : String(r[13] || ''),
+        returnReason: String(r[14] || ''), // 15列目: 差戻し理由
+        returnedAt: r[15] instanceof Date ? Utilities.formatDate(r[15], "JST", "yyyy/MM/dd HH:mm") : String(r[15] || '') // 16列目: 差戻し日時
       });
     }
 
@@ -1058,6 +1065,8 @@ function returnIncidentByOffice(officeName, rowId, whoami, pin, reason) {
   sheet.getRange(rowId, 12).setValue('差戻し'); // ステータス
   sheet.getRange(rowId, 13).setValue('');     // 承認者クリア
   sheet.getRange(rowId, 14).setValue('');     // 日時クリア
+  sheet.getRange(rowId, 15).setValue(reason); // 差戻し理由
+  sheet.getRange(rowId, 16).setValue(new Date()); // 差戻し日時
 
   // 差戻し理由はログに残す (シートに列がないため)
   // もしシートに備考列があればそこへ追記するが、今回は14列固定仕様なのでログへ。
