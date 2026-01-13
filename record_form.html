@@ -4741,16 +4741,31 @@
             if (b) b.textContent = `認証: ${txt}`;
             if (bm) bm.textContent = txt;
 
-            // 権限によるメニュー制御
+            // 権限によるメニュー制御 & データリロード
             const approveTab = document.getElementById('tabIncidentApprove');
-            if (w.role === 'manager') {
+            const isManager = (w.role === 'manager');
+
+            if (isManager) {
                 approveTab?.classList.remove('hidden');
             } else {
                 approveTab?.classList.add('hidden');
-                // [v48] If on approval tab but lost manager role, switch to pending
-                const approvelSec = document.getElementById('incidentApprovalSection');
-                if (approvelSec && !approvelSec.classList.contains('hidden')) {
-                    if (typeof switchIncidentTab === 'function') switchIncidentTab('pending');
+            }
+
+            // [v49] Auto-reload current tab on user switch (Security & Consistency)
+            // Checks visible section and re-triggers switchIncidentTab to reload data with new user context.
+            if (typeof switchIncidentTab === 'function') {
+                const pSec = document.getElementById('incidentPendingSection');
+                const hSec = document.getElementById('incidentHistorySection');
+                const aSec = document.getElementById('incidentApprovalSection');
+
+                if (aSec && !aSec.classList.contains('hidden')) {
+                    // If on Approval tab: Reload if Manager, otherwise Fallback to Pending
+                    if (isManager) switchIncidentTab('approval');
+                    else switchIncidentTab('pending');
+                } else if (hSec && !hSec.classList.contains('hidden')) {
+                    switchIncidentTab('history'); // Reload History
+                } else if (pSec && !pSec.classList.contains('hidden')) {
+                    switchIncidentTab('pending'); // Reload Pending
                 }
             }
         }
