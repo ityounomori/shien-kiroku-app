@@ -2381,6 +2381,18 @@
                         document.querySelectorAll('.segment-btn').forEach(b => b.classList.remove('active'));
                         const segBtn = document.getElementById('seg-day');
                         if (segBtn) segBtn.classList.add('active');
+
+                        // [Fix] Double-check clear list containers to absolutely prevent flash
+                        const containers = [
+                            'record-list-container',
+                            'incidentPendingCards',
+                            'incidentHistoryCards',
+                            'incidentApprovalList'
+                        ];
+                        containers.forEach(id => {
+                            const el = document.getElementById(id);
+                            if (el) el.innerHTML = '';
+                        });
                     }
 
                     av.classList.remove('hidden');
