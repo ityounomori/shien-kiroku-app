@@ -2393,6 +2393,10 @@
                             const el = document.getElementById(id);
                             if (el) el.innerHTML = '';
                         });
+
+                        // [Fix] Also hide load more button
+                        const lm = document.getElementById('load-more-container');
+                        if (lm) lm.classList.add('hidden');
                     }
 
                     av.classList.remove('hidden');
@@ -2506,6 +2510,10 @@
                 const el = document.getElementById(id);
                 if (el) el.innerHTML = '';
             });
+
+            // [Fix] Also hide load more button
+            const lm = document.getElementById('load-more-container');
+            if (lm) lm.classList.add('hidden');
 
             // アプリ画面を非表示
             const av = document.getElementById('appView');
