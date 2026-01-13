@@ -4974,8 +4974,9 @@
                     if (!item.rowId) console.warn('[Debug] Missing rowId for item:', item);
 
                     card.onclick = () => {
-                        console.log('[Debug] Card Clicked! RowId:', item.rowId);
-                        viewIncidentDetail(item.rowId);
+                        console.log('[Debug] Card Clicked! Passing full item object');
+                        // [Fix] Yield to main thread and pass full object
+                        setTimeout(() => viewIncidentDetail(item), 0);
                     };
 
                     const isReturned = (item.status === '差戻し' || item.status === '差戻');
@@ -5604,7 +5605,10 @@
                 history.forEach(item => {
                     const card = document.createElement('div');
                     card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
-                    card.onclick = () => viewIncidentDetail(item); // 閲覧モード（オブジェクト渡しで高速化）
+                    card.onclick = () => {
+                        // [Fix] Yield to main thread to allow click feedback before heavy rendering
+                        setTimeout(() => viewIncidentDetail(item), 0);
+                    };
 
                     // Status Badge is less necessary if we only show Approved, but keeping it for Returned/Others if logic changes
                     const statusClass = item.status === '承認済' ? 'bg-emerald-100 text-emerald-700' : ((item.status === '差戻し' || item.status === '差戻') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700');
