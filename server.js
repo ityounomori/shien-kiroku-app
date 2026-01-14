@@ -1535,12 +1535,16 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
 
     if (!sheet) return { data: [], total: 0, debug: { error: 'Sheet not found' } };
 
-    // 1. Load All Data (Fastest way in GAS)
+    // 1. Load Data (Optimized: Last 3000 rows only)
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { data: [], total: 0, hasMore: false };
 
+    const SCAN_LIMIT = 3000;
+    const startRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
+    const numRows = lastRow - startRow + 1;
+
     // Use getRange to avoid empty rows at bottom if any
-    const data = sheet.getRange(2, 1, lastRow - 1, 16).getValues();
+    const data = sheet.getRange(startRow, 1, numRows, 16).getValues();
 
     // 2. Mapping
     const mapped = [];
@@ -1548,7 +1552,7 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
       const r = data[i];
       if (!r[0]) continue; // Skip empty ID
       mapped.push({
-        rowId: i + 2, // 1-based index (+1 for header, +1 for 0-index) -> No, getRange started at 2. data[0] is row 2. So data[i] is row 2+i.
+        rowId: startRow + i, // Correct row ID based on startRow
         id: String(r[0] || ''),
         createdAt: r[1] instanceof Date ? Utilities.formatDate(r[1], "JST", "yyyy/MM/dd HH:mm") : String(r[1] || ''),
         occurDate: r[2] instanceof Date ? Utilities.formatDate(r[2], "JST", "yyyy/MM/dd HH:mm") : String(r[2] || ''),

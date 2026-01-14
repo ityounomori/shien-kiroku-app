@@ -5580,7 +5580,7 @@
                 populateUser(cachedUsers);
             } else {
                 // Fetch if empty
-                google.script.run.withSuccessHandler(function (users) {
+                google.script.run.withFailureHandler(console.error).withSuccessHandler(function (users) {
                     if (!APP_STATE.users) APP_STATE.users = {};
                     if (!APP_STATE.users[w.officeSelected]) APP_STATE.users[w.officeSelected] = users;
                     populateUser(users);
@@ -5605,7 +5605,7 @@
             if (cachedStaff && cachedStaff.length > 0) {
                 populateStaff(cachedStaff);
             } else {
-                google.script.run.withSuccessHandler(function (staffs) {
+                google.script.run.withFailureHandler(console.error).withSuccessHandler(function (staffs) {
                     if (!APP_STATE.staffs) APP_STATE.staffs = {};
                     if (!APP_STATE.staffs[w.officeSelected]) APP_STATE.staffs[w.officeSelected] = staffs;
                     populateStaff(staffs);
