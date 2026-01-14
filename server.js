@@ -1097,7 +1097,7 @@ function getUserListDirectByOffice(officeName) {
   return data
     .map(r => ({ name: String(r[0] || '').trim(), office: String(r[1] || '').trim() }))
     .filter(r => {
-      if (r.name.length === 0 || !/[^\s\u3000]/.test(r.name)) return false;
+      if (!r.name || r.name.length === 0) return false; // Empty check only
       return r.office === '' || r.office === targetOffice;
     })
     .map(r => ({ userName: r.name }));
@@ -1642,8 +1642,12 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
       });
     }
 
-    // Sort Newest First
-    mapped.reverse();
+    // Sort by OccurDate Descending (Newest Occurrence First)
+    mapped.sort((a, b) => {
+      const da = new Date(a.occurDate);
+      const db = new Date(b.occurDate);
+      return db - da;
+    });
 
     // 3. Base Filtering (Status: Approved Only)
     let filtered = mapped.filter(item => {
