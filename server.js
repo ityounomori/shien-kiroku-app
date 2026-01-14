@@ -1535,16 +1535,85 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
 
     if (!sheet) return { data: [], total: 0, debug: { error: 'Sheet not found' } };
 
-    // 1. Load Data (Optimized: Last 3000 rows only)
+    // 1. Load Data (Optimized)
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { data: [], total: 0, hasMore: false };
 
+    let startRow = 2;
     const SCAN_LIMIT = 3000;
-    const startRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
-    const numRows = lastRow - startRow + 1;
 
-    // Use getRange to avoid empty rows at bottom if any
-    const data = sheet.getRange(startRow, 1, numRows, 16).getValues();
+    // Default: Scan only last 3000 (Fastest for initial view)
+    startRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
+
+    // If Date Filter exists, we need to find the correct startRow
+    if (filters && filters.from) {
+      const targetDate = new Date(filters.from);
+      targetDate.setHours(0, 0, 0, 0); // Start of day
+
+      // Check the oldest date in current window (startRow)
+      // If it's newer than target, we need to go back.
+      // Optimization: Perform simple binary search to find start row
+
+      const getOccurDateAtRow = (r) => {
+        try {
+          const val = sheet.getRange(r, 3).getValue(); // Col 3 is occurDate
+          return val instanceof Date ? val : new Date(val);
+        } catch (e) { return null; }
+      };
+
+      // Check current startRow's date
+      const dataStart = getOccurDateAtRow(startRow);
+      if (dataStart && dataStart > targetDate) {
+        // Target is older, we need to search backwards
+        console.log(`[Perf] Target ${filters.from} is older than ${dataStart}. Executing Binary Search...`);
+
+        let low = 2;
+        let high = startRow;
+        let foundRow = 2;
+
+        // Binary Search (approx 10-15 steps for 100k rows)
+        while (low <= high) {
+          const mid = Math.floor((low + high) / 2);
+          const d = getOccurDateAtRow(mid);
+          if (!d) { low = mid + 1; continue; } // Invalid date, skip
+
+          if (d < targetDate) {
+            foundRow = mid; // Potential start
+            low = mid + 1; // Look for newer matches to get closer
+          } else {
+            high = mid - 1;
+          }
+        }
+        // Adjust startRow (Backtrack a bit to be safe)
+        startRow = Math.max(2, foundRow - 100);
+        console.log(`[Perf] Found start row: ${startRow}`);
+      }
+    }
+
+    const numRows = lastRow - startRow + 1;
+    // Safety limit to prevent memory error if range is too huge (e.g. 100k rows)
+    // If range > 10000, maybe we should slice? But filter logic needs raw data.
+    // For now, let's assume binary search narrows it down, or user accepts slow load for very old "From".
+    // Or we can cap it at 10000 rows max from startRow? 
+    // If user asks "All data from 2020", it might be huge.
+    // Let's enforce a hard Max Limit for safety.
+    const MAX_FETCH = 10000;
+    const actualNumRows = Math.min(numRows, MAX_FETCH);
+
+    // If we capped it, we are reading from startRow to startRow + MAX_FETCH
+    // But we want to read up to lastRow if possible. 
+    // Actually, for "History", we usually want NEWEST data.
+    // So if range is huge, we should prioritise reading from lastRow backwards?
+    // But filters.from implies we want data FROM that date.
+
+    // Logic: Read from startRow up to lastRow (if small enough)
+    // If too big, read first MAX_FETCH from startRow (ascending order) 
+    // OR last MAX_FETCH?
+    // Incident History display order is DESC (newest first).
+    // The user wants to see "Past 30 days" or "Specific Range".
+    // If "Specific Date 2023", we found the start row of 2023. We need data from there.
+
+    const data = sheet.getRange(startRow, 1, actualNumRows, 16).getValues();
 
     // 2. Mapping
     const mapped = [];
