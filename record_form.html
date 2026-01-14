@@ -5563,6 +5563,9 @@
                 const userSelect = document.getElementById('hist-user');
                 if (!userSelect) return;
 
+                // Keep current selection
+                const currentVal = userSelect.value;
+
                 // Clear existing (keep first)
                 while (userSelect.options.length > 1) {
                     userSelect.remove(1);
@@ -5574,6 +5577,11 @@
                     opt.textContent = u;
                     userSelect.appendChild(opt);
                 });
+
+                // Restore selection if exists
+                if (currentVal && Array.from(userSelect.options).some(o => o.value === currentVal)) {
+                    userSelect.value = currentVal;
+                }
             };
 
             const cachedUsers = (APP_STATE.users && APP_STATE.users[w.officeSelected]);
@@ -5593,6 +5601,10 @@
             const populateStaff = (staffList) => {
                 const recSelect = document.getElementById('hist-recorder');
                 if (!recSelect) return;
+
+                // Keep current selection
+                const currentVal = recSelect.value;
+
                 while (recSelect.options.length > 1) { recSelect.remove(1); }
                 const sorted = [...staffList].sort((a, b) => a.localeCompare(b, 'ja'));
                 sorted.forEach(s => {
@@ -5601,6 +5613,11 @@
                     opt.textContent = s;
                     recSelect.appendChild(opt);
                 });
+
+                // Restore selection
+                if (currentVal && Array.from(recSelect.options).some(o => o.value === currentVal)) {
+                    recSelect.value = currentVal;
+                }
             };
 
             const cachedStaff = (APP_STATE.staffs && APP_STATE.staffs[w.officeSelected]);
