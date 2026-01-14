@@ -1664,16 +1664,16 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
       }
       if (filters.type) filtered = filtered.filter(i => i.type === filters.type);
       if (filters.user) {
-        const normUser = (filters.user).toString().toLowerCase().trim();
+        const normUser = (filters.user).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
         filtered = filtered.filter(i => {
-          const target = (i.user || i.userName || '').toLowerCase();
+          const target = (i.user || i.userName || '').replace(/[\s\u3000]+/g, '').toLowerCase();
           return target.includes(normUser);
         });
       }
       if (filters.recorder) {
-        const normRec = (filters.recorder).toString().toLowerCase().trim();
+        const normRec = (filters.recorder).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
         filtered = filtered.filter(i => {
-          const target = (i.recorder || '').toLowerCase();
+          const target = (i.recorder || '').replace(/[\s\u3000]+/g, '').toLowerCase();
           return target.includes(normRec);
         });
       }
