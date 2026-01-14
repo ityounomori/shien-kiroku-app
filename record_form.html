@@ -1,4 +1,4 @@
-<!-- record_form.html - v33 (Logic Restored & Final Bug Fixes) -->
+﻿<!-- record_form.html - v33 (Logic Restored & Final Bug Fixes) -->
 <!DOCTYPE html>
 <html>
 
@@ -5491,168 +5491,138 @@
         }
         window.addEventListener('hashchange', route);
 
-        // [v35 Fix] Restored loadIncidentHistory
-        // [v52 Feature] History Pagination & Caching
-        function loadIncidentHistory(useCache = false) {
+        // [v52 Feature] Server-side Pagination for Incident History
+        // Replaces previous Client-side pagination logic
+        function loadIncidentHistory(isAppend = false) {
             const w = getWhoami();
             if (!w) return;
             const container = document.getElementById('incidentHistoryCards');
             if (!container) return console.error('History container not found');
 
-            // --- Cache Logic ---
-            // If cache requested and data exists, skip fetch
-            if (useCache && APP_STATE.history && APP_STATE.history.allData) {
-                console.log('[Debug] Using cached history data');
-                applyIncidentHistoryFilterAndRender();
-                return;
-            }
-
-            // [Fix] Unified Spinner with centering wrapper
-            container.innerHTML = `<div class="flex justify-center items-center py-20 w-full col-span-full">${getLoaderHtml()}</div>`;
-
-            // Remove grid temporarily for centering (though col-span-full helps, flex is safer for true center)
-            container.classList.remove('grid', 'grid-cols-1', 'md:grid-cols-2');
-            container.classList.add('flex', 'justify-center');
-
-            console.log('[Debug] loadIncidentHistory started for Office:', w.officeSelected);
-
-            google.script.run.withSuccessHandler(response => {
-                // Restore grid layout
-                container.classList.remove('flex', 'justify-center');
-                container.classList.add('grid', 'grid-cols-1', 'md:grid-cols-2');
-                const data = (response && response.data) ? response.data : response;
-                const debug = (response && response.debug) ? response.debug : null;
-
-                console.log('[Debug] History data received:', data ? data.length : 0, 'items');
-                if (debug) console.log('[Debug] Server Metadata:', debug);
-
-                // Init Cache Step
-                const all = data || [];
-                // Base filter logic (Exclude Pending/Returned) - Keep consistent with previous logic
-                // History shows 'Approved' only
-                const baseFiltered = all.filter(item => {
-                    return item.status !== '未承認' && item.status !== '差戻し' && item.status !== '差戻';
-                }).sort((a, b) => new Date(b.occurDate) - new Date(a.occurDate));
+            // --- State Initialization ---
+            if (!APP_STATE.history || !isAppend) {
+                // Determine filters from DOM inputs
+                const filters = {
+                    from: document.getElementById('hist-from').value,
+                    to: document.getElementById('hist-to').value,
+                    type: document.getElementById('hist-type').value,
+                    user: document.getElementById('hist-user').value
+                };
 
                 APP_STATE.history = {
-                    allData: baseFiltered, // Sorted & Base Filtered
-                    filtered: [],          // After UI Filter
                     limit: 50,
-                    rendered: 0
+                    offset: 0,
+                    filters: filters,
+                    items: [], // Client cache of loaded items
+                    hasMore: true,
+                    loading: false
                 };
 
-                applyIncidentHistoryFilterAndRender();
+                // Clear Container on Initial Load
+                if (!isAppend) {
+                    // Show full page spinner
+                    container.innerHTML = `<div class="flex justify-center items-center py-20 w-full col-span-full">${getLoaderHtml()}</div>`;
+                    // Centering
+                    container.classList.remove('grid', 'grid-cols-1', 'md:grid-cols-2');
+                    container.classList.add('flex', 'justify-center');
+                }
+            } else {
+                // Is Append mode
+                if (APP_STATE.history.loading) return; // Prevent double fetch
 
-            }).getIncidentsByOfficeV2(w.officeSelected);
-        }
-
-        function applyIncidentHistoryFilterAndRender() {
-            if (!APP_STATE.history) return;
-
-            const container = document.getElementById('incidentHistoryCards');
-            container.innerHTML = '';
-
-            // フィルター適用
-            const from = document.getElementById('hist-from').value;
-            const to = document.getElementById('hist-to').value;
-            const type = document.getElementById('hist-type').value;
-            const user = document.getElementById('hist-user').value;
-
-            let result = APP_STATE.history.allData; // Already sorted & base filtered
-
-            if (from) result = result.filter(i => new Date(i.occurDate) >= new Date(from));
-            if (to) {
-                const toDate = new Date(to);
-                toDate.setHours(23, 59, 59, 999);
-                result = result.filter(i => new Date(i.occurDate) <= toDate);
-            }
-            if (type) result = result.filter(i => i.type === type);
-            if (user) {
-                const normUser = user.toString().toLowerCase().trim();
-                result = result.filter(i => {
-                    const targetUser = (i.user || i.userName || '').toLowerCase();
-                    return targetUser.includes(normUser);
-                });
+                // Show small spinner at bottom?
+                // For now, simpler to just wait or show button spinner
+                const btn = document.getElementById('btn-hist-load-more');
+                if (btn) {
+                    btn.innerHTML = `<i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...`;
+                    btn.disabled = true;
+                }
             }
 
-            console.log('[Debug] Filtered History List size:', result.length);
+            APP_STATE.history.loading = true;
 
-            // Update State
-            APP_STATE.history.filtered = result;
-            APP_STATE.history.rendered = 0; // Reset rendered count
-
-            if (result.length === 0) {
-                container.innerHTML = '<div class="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100 col-span-full">履歴（承認済）はありません</div>';
-                return;
-            }
-
-            renderHistoryBatch();
-        }
-
-        function renderHistoryBatch() {
             const h = APP_STATE.history;
-            const container = document.getElementById('incidentHistoryCards');
+            console.log('[Debug] Fetching History:', h.offset, h.limit, h.filters);
 
-            // Remove existing "Load More" button container
-            const btnContainer = document.getElementById('btn-hist-load-more-container');
-            if (btnContainer) btnContainer.remove();
+            google.script.run.withSuccessHandler(response => {
+                const data = response.data || [];
+                const hasMore = response.hasMore || false;
+                const debug = response.debug;
 
-            // Slice next batch
-            const nextBatch = h.filtered.slice(h.rendered, h.rendered + h.limit);
-            if (nextBatch.length === 0) return;
+                console.log('[Debug] History Fetched:', data.length, debug);
 
-            nextBatch.forEach(item => {
-                const card = document.createElement('div');
-                card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
-                card.onclick = () => {
-                    // [Fix] Yield to main thread to allow click feedback before heavy rendering
-                    setTimeout(() => viewIncidentDetail(item), 0);
-                };
+                APP_STATE.history.items = APP_STATE.history.items.concat(data);
+                APP_STATE.history.offset += data.length;
+                APP_STATE.history.hasMore = hasMore;
+                APP_STATE.history.loading = false;
 
-                const statusClass = item.status === '承認済' ? 'bg-emerald-100 text-emerald-700' : ((item.status === '差戻し' || item.status === '差戻') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700');
-                const targetUser = item.user || item.userName || '(対象者不明)';
+                // Render Logic
+                const isInitial = (!isAppend);
 
-                // Unified Card Layout
-                card.innerHTML = `
-                                <div class="flex-1 min-w-0">
-                                    <!-- Row 1: Status | Date -->
-                                    <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">${item.status}</span>
-                                        <span class="text-[10px] font-bold text-gray-400">${(item.occurDate || '').toString().replace('T', ' ')}</span>
-                                    </div>
-                                    <!-- Row 2: Target | Category -->
-                                    <h4 class="text-sm font-bold text-gray-800 truncate mb-1">${targetUser} / ${item.type}</h4>
-                                    <!-- Row 3: Recorder -->
-                                    <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${item.recorder || '(不明)'}</div>
-                                    <!-- Row 4: Content (Situation) -->
-                                    <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${item.situation || ''}</p>
-                                </div>
-                                <div class="text-xs text-gray-400 shrink-0 ml-2">
-                                    <i class="fas fa-chevron-right"></i>
-                                </div>
-                            `;
-                container.appendChild(card);
-            });
+                if (isInitial) {
+                    container.innerHTML = '';
+                    // Restore grid layout
+                    container.classList.remove('flex', 'justify-center');
+                    container.classList.add('grid', 'grid-cols-1', 'md:grid-cols-2');
 
-            h.rendered += nextBatch.length;
+                    if (data.length === 0) {
+                        container.innerHTML = '<div class="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100 col-span-full">条件に一致する履歴はありません</div>';
+                        return;
+                    }
+                } else {
+                    // Remove "Load More" button container
+                    const btnContainer = document.getElementById('btn-hist-load-more-container');
+                    if (btnContainer) btnContainer.remove();
+                }
 
-            // Check if more items exist
-            if (h.rendered < h.filtered.length) {
-                const remaining = h.filtered.length - h.rendered;
-                const nextLoad = Math.min(remaining, h.limit);
+                // Render appended items
+                data.forEach(item => {
+                    const card = createIncidentHistoryCard(item); // Helper Function
+                    container.appendChild(card);
+                });
 
-                const moreDiv = document.createElement('div');
-                moreDiv.id = 'btn-hist-load-more-container';
-                moreDiv.className = 'col-span-full flex justify-center py-6';
-                moreDiv.innerHTML = `<button onclick="renderHistoryBatch()" class="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
-                                        <span>もっと見る</span>
-                                        <span class="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-500">${remaining}件</span>
-                                        <i class="fas fa-chevron-down text-xs"></i>
-                                     </button>`;
-                container.appendChild(moreDiv);
-            }
+                // Check "Load More"
+                if (hasMore) {
+                    const moreDiv = document.createElement('div');
+                    moreDiv.id = 'btn-hist-load-more-container';
+                    moreDiv.className = 'col-span-full flex justify-center py-6';
+                    // Note: Argument needs to be true for Append
+                    moreDiv.innerHTML = `<button id="btn-hist-load-more" onclick="loadIncidentHistory(true)" class="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
+                                            <span>もっと見る</span>
+                                            <i class="fas fa-chevron-down text-xs"></i>
+                                          </button>`;
+                    container.appendChild(moreDiv);
+                }
+
+            }).getIncidentHistory(w.officeSelected, h.limit, h.offset, h.filters);
         }
 
+        function createIncidentHistoryCard(item) {
+            const card = document.createElement('div');
+            card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
+            card.onclick = () => {
+                setTimeout(() => viewIncidentDetail(item), 0);
+            };
+
+            const statusClass = item.status === '承認済' ? 'bg-emerald-100 text-emerald-700' : ((item.status === '差戻し' || item.status === '差戻') ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700');
+            const targetUser = item.user || item.userName || '(対象者不明)';
+
+            card.innerHTML = `
+                <div class="flex-1 min-w-0">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">${item.status}</span>
+                        <span class="text-[10px] font-bold text-gray-400">${(item.occurDate || '').toString().replace('T', ' ')}</span>
+                    </div>
+                    <h4 class="text-sm font-bold text-gray-800 truncate mb-1">${targetUser} / ${item.type}</h4>
+                    <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${item.recorder || '(不明)'}</div>
+                    <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${item.situation || ''}</p>
+                </div>
+                <div class="text-xs text-gray-400 shrink-0 ml-2">
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            `;
+            return card;
+        }
         // [v37+] showToast using existing success-modal
 
         function handleError(err) {

@@ -1521,3 +1521,99 @@ function restoreIncidentFromTrash(officeName, trashRowIndex) {
     throw new Error('復元失敗: ' + e.message);
   }
 }
+
+// [v52 Feature] Server-side Pagination for Incident History
+function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
+  try {
+    const files = getFilesByOffice(officeName);
+    const ss = SpreadsheetApp.openById(files.incidentFileId);
+    // Use targetSheetName logic same as getIncidentsByOfficeV2
+    const targetSheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET)
+      ? SHEET_NAMES.INCIDENT_SHEET
+      : 'incidents';
+    const sheet = ss.getSheetByName(targetSheetName);
+
+    if (!sheet) return { data: [], total: 0, debug: { error: 'Sheet not found' } };
+
+    // 1. Load All Data (Fastest way in GAS)
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { data: [], total: 0, hasMore: false };
+
+    // Use getRange to avoid empty rows at bottom if any
+    const data = sheet.getRange(2, 1, lastRow - 1, 16).getValues();
+
+    // 2. Mapping
+    const mapped = [];
+    for (let i = 0; i < data.length; i++) {
+      const r = data[i];
+      if (!r[0]) continue; // Skip empty ID
+      mapped.push({
+        rowId: i + 2, // 1-based index (+1 for header, +1 for 0-index) -> No, getRange started at 2. data[0] is row 2. So data[i] is row 2+i.
+        id: String(r[0] || ''),
+        createdAt: r[1] instanceof Date ? Utilities.formatDate(r[1], "JST", "yyyy/MM/dd HH:mm") : String(r[1] || ''),
+        occurDate: r[2] instanceof Date ? Utilities.formatDate(r[2], "JST", "yyyy/MM/dd HH:mm") : String(r[2] || ''),
+        recorder: String(r[3] || ''),
+        user: String(r[4] || ''),
+        userName: String(r[4] || ''), // Alias
+        type: String(r[5] || ''),
+        place: String(r[6] || ''),
+        situation: String(r[7] || ''),
+        cause: String(r[8] || ''),
+        response: String(r[9] || ''),
+        prevention: String(r[10] || ''),
+        status: (r[11] || '未承認').toString().trim(),
+        approver: String(r[12] || ''),
+        approvedAt: r[13] instanceof Date ? Utilities.formatDate(r[13], "JST", "yyyy/MM/dd HH:mm") : String(r[13] || ''),
+        returnReason: String(r[14] || ''),
+        returnedAt: r[15] instanceof Date ? Utilities.formatDate(r[15], "JST", "yyyy/MM/dd HH:mm") : String(r[15] || '')
+      });
+    }
+
+    // Sort Newest First
+    mapped.reverse();
+
+    // 3. Base Filtering (Status: Approved Only)
+    let filtered = mapped.filter(item => {
+      return item.status !== '未承認' && item.status !== '差戻し' && item.status !== '差戻';
+    });
+
+    // 4. Apply UI Filters
+    if (filters) {
+      if (filters.from) filtered = filtered.filter(i => new Date(i.occurDate) >= new Date(filters.from));
+      if (filters.to) {
+        const toDate = new Date(filters.to);
+        toDate.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(i => new Date(i.occurDate) <= toDate);
+      }
+      if (filters.type) filtered = filtered.filter(i => i.type === filters.type);
+      if (filters.user) {
+        const normUser = (filters.user).toString().toLowerCase().trim();
+        filtered = filtered.filter(i => {
+          const target = (i.user || i.userName || '').toLowerCase();
+          return target.includes(normUser);
+        });
+      }
+    }
+
+    const total = filtered.length;
+
+    // 5. Pagination
+    const sliced = filtered.slice(offset, offset + limit);
+
+    return {
+      data: sliced,
+      total: total,
+      hasMore: (offset + limit < total),
+      debug: {
+        totalData: mapped.length,
+        filtered: total,
+        offset: offset,
+        limit: limit
+      }
+    };
+
+  } catch (e) {
+    console.error('getIncidentHistory Error:', e);
+    return { data: [], total: 0, debug: { error: e.toString() } };
+  }
+}
