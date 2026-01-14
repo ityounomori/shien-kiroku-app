@@ -2679,7 +2679,10 @@
             [document.getElementById('user-selector-pc'), document.getElementById('user-selector-sp')].forEach(sel => {
                 if (!sel) return;
                 sel.innerHTML = '';
-                APP_STATE.users.forEach(u => sel.add(new Option(u.userName, u.userName)));
+                APP_STATE.users.forEach(u => {
+                    const name = (typeof u === 'object' && u.userName) ? u.userName : u;
+                    sel.add(new Option(name, name));
+                });
             });
 
             if (APP_STATE.users.length > 0) {
@@ -2736,8 +2739,10 @@
                 // Initialize date range and load data
                 updateDateRange(true);
 
-                console.log('[Debug] Switching to first user:', APP_STATE.users[0].userName);
-                switchUser(APP_STATE.users[0].userName);
+                const firstUser = APP_STATE.users[0];
+                const firstUserName = (typeof firstUser === 'object' && firstUser.userName) ? firstUser.userName : firstUser;
+                console.log('[Debug] Switching to first user:', firstUserName);
+                switchUser(firstUserName);
                 // switchUser calls loadRecords internally
             } else {
                 console.warn('[Warning] No users found in this office.');
@@ -3767,10 +3772,14 @@
         }
         function renderUserSelectOptions() {
             const c = document.getElementById('user-select-list'), s = document.getElementById('user-select-search').value.toLowerCase(); c.innerHTML = '';
-            APP_STATE.users.filter(u => u.userName.toLowerCase().includes(s)).forEach(u => {
-                const sel = APP_STATE.selectedUsers.includes(u.userName), d = document.createElement('label');
+            APP_STATE.users.filter(u => {
+                const name = (typeof u === 'object' && u.userName) ? u.userName : u;
+                return name.toLowerCase().includes(s);
+            }).forEach(u => {
+                const name = (typeof u === 'object' && u.userName) ? u.userName : u;
+                const sel = APP_STATE.selectedUsers.includes(name), d = document.createElement('label');
                 d.className = `flex items-center p-3 rounded-lg border cursor-pointer hover:bg-indigo-50 ${sel ? 'bg-indigo-50 border-indigo-200' : 'bg-white border-gray-200'}`;
-                d.innerHTML = `<input type="checkbox" value="${u.userName}" class="h-4 w-4 text-indigo-600 rounded" ${sel ? 'checked' : ''} onchange="updateSelectedUsers(this)"><span class="ml-2 text-sm font-medium text-gray-700">${u.userName}</span>`;
+                d.innerHTML = `<input type="checkbox" value="${name}" class="h-4 w-4 text-indigo-600 rounded" ${sel ? 'checked' : ''} onchange="updateSelectedUsers(this)"><span class="ml-2 text-sm font-medium text-gray-700">${name}</span>`;
                 c.appendChild(d);
             });
         }
@@ -4198,7 +4207,8 @@
             // 利用者リスト (マスタから)
             APP_STATE.users.forEach(u => {
                 const o = document.createElement('option');
-                o.value = u.userName; o.text = u.userName;
+                const name = (typeof u === 'object' && u.userName) ? u.userName : u;
+                o.value = name; o.text = name;
                 userSel.appendChild(o);
             });
 
