@@ -1593,6 +1593,13 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
           return target.includes(normUser);
         });
       }
+      if (filters.recorder) {
+        const normRec = (filters.recorder).toString().toLowerCase().trim();
+        filtered = filtered.filter(i => {
+          const target = (i.recorder || '').toLowerCase();
+          return target.includes(normRec);
+        });
+      }
     }
 
     const total = filtered.length;

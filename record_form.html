@@ -1374,71 +1374,92 @@
 
                         <!-- 2. 履歴 (History) -->
                         <section id="incidentHistorySection" class="max-w-6xl mx-auto py-4 hidden">
-                            <!-- Filters (Revamped v53) -->
-                            <div class="bg-white p-5 rounded-2xl border border-gray-200 mb-6 shadow-sm">
-                                <div class="flex flex-col gap-4">
-                                    <!-- Top Row: Presets & Status -->
+                            <!-- Filters (Modern v1.0) -->
+                            <div class="bg-white p-4 rounded-2xl border border-gray-200 mb-6 shadow-sm">
+                                <div class="flex flex-col gap-3">
+                                    <!-- Row 1: Segments & Status -->
                                     <div class="flex flex-wrap items-center justify-between gap-3">
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xs font-bold text-gray-500">期間:</span>
-                                            <div class="flex bg-gray-100 rounded-lg p-0.5">
-                                                <button onclick="setHistoryRange('current-month')"
-                                                    class="px-3 py-1.5 text-xs font-bold rounded-md transition bg-white text-indigo-600 shadow-sm"
-                                                    id="btn-range-month">今月</button>
-                                                <button onclick="setHistoryRange('all')"
-                                                    class="px-3 py-1.5 text-xs font-bold rounded-md transition text-gray-500 hover:text-gray-700"
-                                                    id="btn-range-all">全期間</button>
+                                        <!-- Period Segments -->
+                                        <div
+                                            class="flex bg-gray-100 rounded-lg p-1 overflow-x-auto hide-scrollbar max-w-full">
+                                            <button onclick="setHistoryRange('today')"
+                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
+                                                data-val="today">今日</button>
+                                            <button onclick="setHistoryRange('week')"
+                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
+                                                data-val="week">今週</button>
+                                            <button onclick="setHistoryRange('current-month')"
+                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white text-indigo-600 shadow-sm whitespace-nowrap transition"
+                                                data-val="current-month">今月</button>
+                                            <button onclick="setHistoryRange('past30')"
+                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
+                                                data-val="past30">過去30日</button>
+                                            <button onclick="setHistoryRange('custom')"
+                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
+                                                data-val="custom">期間指定</button>
+                                        </div>
+
+                                        <!-- Status Info -->
+                                        <div class="flex items-center gap-3 ml-auto shrink-0">
+                                            <div
+                                                class="flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded text-emerald-700 border border-emerald-100">
+                                                <i class="fas fa-check-circle text-[10px]"></i>
+                                                <span class="text-[10px] font-bold">承認済み</span>
                                             </div>
-                                        </div>
-                                        <div class="flex items-center gap-2">
-                                            <span class="text-xs font-bold text-gray-400">状態:</span>
-                                            <span
-                                                class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">承認済み</span>
+                                            <button onclick="switchIncidentTab('pending')"
+                                                class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1">
+                                                未承認は対応待ちへ <i class="fas fa-arrow-right"></i>
+                                            </button>
                                         </div>
                                     </div>
 
-                                    <!-- Middle Row: Inputs -->
-                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-                                        <!-- Date Range -->
-                                        <div class="col-span-1">
-                                            <input type="date" id="hist-from"
-                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white transition"
-                                                placeholder="開始日">
-                                        </div>
-                                        <div class="col-span-1">
-                                            <input type="date" id="hist-to"
-                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white transition"
-                                                placeholder="終了日">
-                                        </div>
+                                    <!-- Row 2: Custom Date Inputs (Hidden by default) -->
+                                    <div id="filter-date-inputs"
+                                        class="hidden grid grid-cols-2 gap-3 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                        <input type="date" id="hist-from"
+                                            class="text-xs p-2 border border-gray-200 rounded block w-full bg-white">
+                                        <input type="date" id="hist-to"
+                                            class="text-xs p-2 border border-gray-200 rounded block w-full bg-white">
+                                    </div>
+
+                                    <!-- Row 3: Extended Conditions (Accordion) -->
+                                    <div id="filter-extended-area"
+                                        class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
                                         <!-- Type -->
-                                        <div class="col-span-1">
-                                            <select id="hist-type"
-                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-white">
-                                                <option value="">全ての種別</option>
-                                                <option>ヒヤリハット</option>
-                                                <option>事故</option>
-                                                <option>苦情</option>
-                                            </select>
-                                        </div>
-                                        <!-- User (Dropdown) -->
-                                        <div class="col-span-1">
-                                            <select id="hist-user"
-                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-white">
-                                                <option value="">全ての利用者</option>
-                                                <!-- Dyn Loaded -->
-                                            </select>
-                                        </div>
+                                        <select id="hist-type"
+                                            class="text-xs p-2 border border-gray-200 rounded-lg w-full bg-gray-50 focus:bg-white transition">
+                                            <option value="">全ての種別</option>
+                                            <option>ヒヤリハット</option>
+                                            <option>事故</option>
+                                            <option>苦情</option>
+                                        </select>
+                                        <!-- User -->
+                                        <select id="hist-user"
+                                            class="text-xs p-2 border border-gray-200 rounded-lg w-full bg-gray-50 focus:bg-white transition">
+                                            <option value="">全ての利用者</option>
+                                        </select>
+                                        <!-- Recorder -->
+                                        <input type="text" id="hist-recorder" placeholder="記録者名 (部分一致)"
+                                            class="text-xs p-2 border border-gray-200 rounded-lg w-full bg-gray-50 focus:bg-white transition">
                                     </div>
 
-                                    <!-- Bottom Row: Actions -->
-                                    <div
-                                        class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-gray-100">
-                                        <button onclick="clearHistoryFilters()"
-                                            class="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition">クリア</button>
-                                        <button onclick="loadIncidentHistory()"
-                                            class="flex-1 sm:flex-none px-6 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 transition flex items-center justify-center gap-2">
-                                            <i class="fas fa-search"></i> 検索実行
+                                    <!-- Row 4: Action Bar -->
+                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
+                                        <button id="btn-toggle-extended" onclick="toggleExtendedFilters()"
+                                            class="text-xs font-bold text-gray-500 hover:text-indigo-600 flex items-center gap-1 transition">
+                                            <i class="fas fa-plus-circle"></i> 条件を追加
                                         </button>
+
+                                        <div
+                                            class="flex flex-wrap items-center gap-2 ml-auto w-full sm:w-auto justify-end">
+                                            <!-- Chips Area (Inline) -->
+                                            <div id="hist-active-chips" class="flex flex-wrap gap-1"></div>
+
+                                            <button onclick="loadIncidentHistory()"
+                                                class="px-5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1 ml-2">
+                                                <i class="fas fa-search"></i> 検索
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -5523,21 +5544,15 @@
         window.addEventListener('hashchange', route);
 
         // -----------------------------------------------------------
-        // Incident History Filter Logic (v53)
+        // Incident History Filter Logic (v53 Modern)
         // -----------------------------------------------------------
         function initHistoryFilters() {
-            // 1. Populate User Dropdown if empty
+            // 1. Populate User Dropdown
             const userSelect = document.getElementById('hist-user');
-            if (userSelect && userSelect.options.length <= 1) { // Only default option exists
+            if (userSelect && userSelect.options.length <= 1) {
                 const w = getWhoami();
-                // Check if users list is loaded for current office
                 const users = (APP_STATE.users && APP_STATE.users[w.officeSelected]) || [];
-
-                // If users not loaded, might need to wait or trigger load?
-                // Usually loadUsers() is called on init, so likely available.
-                // Sort users for better UX
                 const sortedUsers = [...users].sort((a, b) => a.localeCompare(b, 'ja'));
-
                 sortedUsers.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u;
@@ -5546,62 +5561,151 @@
                 });
             }
 
-            // 2. Initialize Range Buttons Style (Default: None or current check)
-            // No default auto-selection to avoid confusion, let user decide.
+            // 2. Default Range: Current Month (if empty)
+            if (!document.getElementById('hist-from').value) {
+                setHistoryRange('current-month');
+            } else {
+                renderActiveChips();
+            }
         }
 
         function setHistoryRange(type) {
             const fromEl = document.getElementById('hist-from');
             const toEl = document.getElementById('hist-to');
+            const dateInputs = document.getElementById('filter-date-inputs');
             if (!fromEl || !toEl) return;
 
             const now = new Date();
             let fromVal = '';
             let toVal = '';
 
-            if (type === 'current-month') {
-                // First day to Last day of current month
-                const y = now.getFullYear();
-                const m = now.getMonth();
-                const firstDay = new Date(y, m, 1);
-                const lastDay = new Date(y, m + 1, 0);
-
-                // Format YYYY-MM-DD
-                const fmt = (d) => {
-                    const mm = String(d.getMonth() + 1).padStart(2, '0');
-                    const dd = String(d.getDate()).padStart(2, '0');
-                    return `${d.getFullYear()}-${mm}-${dd}`;
-                };
-                fromVal = fmt(firstDay);
-                toVal = fmt(lastDay);
-            } else if (type === 'all') {
-                fromVal = '';
-                toVal = '';
-            }
-
-            fromEl.value = fromVal;
-            toEl.value = toVal;
-
-            updateRangeButtonStyles(type);
-        }
-
-        function updateRangeButtonStyles(activeType) {
-            const btnMonth = document.getElementById('btn-range-month');
-            const btnAll = document.getElementById('btn-range-all');
-
-            const setActive = (btn, active) => {
-                if (!btn) return;
-                if (active) {
-                    btn.className = "px-3 py-1.5 text-xs font-bold rounded-md transition bg-white text-indigo-600 shadow-sm";
-                } else {
-                    btn.className = "px-3 py-1.5 text-xs font-bold rounded-md transition text-gray-500 hover:text-gray-700";
-                }
+            const fmt = (d) => {
+                const mm = String(d.getMonth() + 1).padStart(2, '0');
+                const dd = String(d.getDate()).padStart(2, '0');
+                return `${d.getFullYear()}-${mm}-${dd}`;
             };
 
-            if (activeType) {
-                setActive(btnMonth, activeType === 'current-month');
-                setActive(btnAll, activeType === 'all');
+            if (type === 'today') {
+                fromVal = fmt(now);
+                toVal = fmt(now);
+            } else if (type === 'week') {
+                // Current week (Sunday start)
+                const day = now.getDay();
+                const diff = now.getDate() - day;
+                const first = new Date(now);
+                first.setDate(diff);
+                const last = new Date(now);
+                last.setDate(diff + 6);
+                fromVal = fmt(first);
+                toVal = fmt(last);
+            } else if (type === 'current-month') {
+                const y = now.getFullYear();
+                const m = now.getMonth();
+                fromVal = fmt(new Date(y, m, 1));
+                toVal = fmt(new Date(y, m + 1, 0));
+            } else if (type === 'past30') {
+                const past = new Date();
+                past.setDate(now.getDate() - 30);
+                fromVal = fmt(past);
+                toVal = fmt(now);
+            } else if (type === 'custom') {
+                // Keep values logic
             }
+
+            if (type !== 'custom') {
+                fromEl.value = fromVal;
+                toEl.value = toVal;
+                if (dateInputs) dateInputs.classList.add('hidden');
+            } else {
+                if (dateInputs) dateInputs.classList.remove('hidden');
+            }
+
+            // Update Button Styles
+            document.querySelectorAll('.segment-btn').forEach(btn => {
+                const isTarget = btn.getAttribute('data-val') === type;
+                if (isTarget) {
+                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white text-indigo-600 shadow-sm whitespace-nowrap transition cursor-default ring-1 ring-indigo-100";
+                } else {
+                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition bg-transparent hover:bg-gray-200";
+                }
+            });
+        }
+
+        function toggleExtendedFilters() {
+            const area = document.getElementById('filter-extended-area');
+            const btn = document.getElementById('btn-toggle-extended');
+            if (area.classList.contains('hidden')) {
+                area.classList.remove('hidden');
+                btn.innerHTML = '<i class="fas fa-minus-circle"></i> 条件を隠す';
+            } else {
+                area.classList.add('hidden');
+                btn.innerHTML = '<i class="fas fa-plus-circle"></i> 条件を追加';
+            }
+        }
+
+        function renderActiveChips() {
+            const container = document.getElementById('hist-active-chips');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const createChip = (label, key, isLocked = false) => {
+                const div = document.createElement('div');
+                div.className = `flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isLocked ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`;
+
+                div.innerHTML = `<span>${label}</span>`;
+                if (!isLocked) {
+                    const close = document.createElement('button');
+                    close.innerHTML = '<i class="fas fa-times"></i>';
+                    close.className = "ml-1 hover:text-indigo-900";
+                    close.onclick = (e) => { e.stopPropagation(); removeFilter(key); };
+                    div.appendChild(close);
+                }
+                container.appendChild(div);
+            };
+
+            // 1. Status (Locked)
+            createChip('状態=承認済み', 'status', true);
+
+            // 2. Date
+            const from = document.getElementById('hist-from').value;
+            const to = document.getElementById('hist-to').value;
+            if (from || to) {
+                let dateLabel = '';
+                if (from && to) dateLabel = `${from}～${to}`;
+                else if (from) dateLabel = `${from}～`;
+                else if (to) dateLabel = `～${to}`;
+                createChip(`期間=${dateLabel}`, 'date');
+            }
+
+            // 3. Type
+            const type = document.getElementById('hist-type').value;
+            if (type) createChip(`種別=${type}`, 'type');
+
+            // 4. User
+            const user = document.getElementById('hist-user').value;
+            if (user) createChip(`利用者=${user}`, 'user');
+
+            // 5. Recorder
+            const rec = document.getElementById('hist-recorder')?.value;
+            if (rec) createChip(`記録者=${rec}`, 'recorder');
+        }
+
+        function removeFilter(key) {
+            if (key === 'date') {
+                document.getElementById('hist-from').value = '';
+                document.getElementById('hist-to').value = '';
+                // Reset styling
+                document.querySelectorAll('.segment-btn').forEach(btn =>
+                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition bg-transparent hover:bg-gray-200"
+                );
+            } else if (key === 'type') {
+                document.getElementById('hist-type').value = '';
+            } else if (key === 'user') {
+                document.getElementById('hist-user').value = '';
+            } else if (key === 'recorder') {
+                document.getElementById('hist-recorder').value = '';
+            }
+            loadIncidentHistory();
         }
 
         function clearHistoryFilters() {
@@ -5609,9 +5713,14 @@
             document.getElementById('hist-to').value = '';
             document.getElementById('hist-type').value = '';
             document.getElementById('hist-user').value = '';
-            updateRangeButtonStyles('all');
+            if (document.getElementById('hist-recorder')) document.getElementById('hist-recorder').value = '';
 
-            // Reload
+            // Reset segments
+            setHistoryRange('all');
+            document.querySelectorAll('.segment-btn').forEach(btn =>
+                btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition bg-transparent hover:bg-gray-200"
+            );
+
             loadIncidentHistory();
         }
 
@@ -5623,6 +5732,9 @@
             const container = document.getElementById('incidentHistoryCards');
             if (!container) return console.error('History container not found');
 
+            // [v53] Update Chips UI
+            if (!isAppend) renderActiveChips();
+
             // --- State Initialization ---
             if (!APP_STATE.history || !isAppend) {
                 // Determine filters from DOM inputs
@@ -5630,7 +5742,8 @@
                     from: document.getElementById('hist-from').value,
                     to: document.getElementById('hist-to').value,
                     type: document.getElementById('hist-type').value,
-                    user: document.getElementById('hist-user').value
+                    user: document.getElementById('hist-user').value,
+                    recorder: document.getElementById('hist-recorder')?.value || ''
                 };
 
                 APP_STATE.history = {
