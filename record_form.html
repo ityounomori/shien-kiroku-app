@@ -5804,6 +5804,17 @@
         function loadIncidentHistory(isAppend = false) {
             const w = getWhoami();
             if (!w) return;
+
+            // [Fix v54.6] Ensure filters are initialized even if switchIncidentTab wasn't the entry point
+            if (!isAppend) {
+                // Check if function exists to avoid error if loading order issue
+                if (typeof initHistoryFilters === 'function') {
+                    initHistoryFilters();
+                } else {
+                    console.warn('initHistoryFilters not found');
+                }
+            }
+
             const container = document.getElementById('incidentHistoryCards');
             if (!container) return console.error('History container not found');
 
