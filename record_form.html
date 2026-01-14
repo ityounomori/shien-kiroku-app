@@ -5556,15 +5556,12 @@
         // Incident History Filter Logic (v53 Modern)
         // -----------------------------------------------------------
         function initHistoryFilters() {
-            console.log('[Debug] initHistoryFilters called');
             const w = getWhoami();
-            if (!w) { console.log('[Debug] initHistoryFilters aborted: No Whoami'); return; }
 
             // 1. Populate User Dropdown
             const populateUser = (userList) => {
-                console.log('[Debug] populateUser called with:', userList ? userList.length : 'null');
                 const userSelect = document.getElementById('hist-user');
-                if (!userSelect) { console.error('[Debug] hist-user element not found!'); return; }
+                if (!userSelect) return;
 
                 // Clear existing (keep first)
                 while (userSelect.options.length > 1) {
@@ -5577,11 +5574,9 @@
                     opt.textContent = u;
                     userSelect.appendChild(opt);
                 });
-                console.log('[Debug] populateUser finished. Options:', userSelect.options.length);
             };
 
             const cachedUsers = (APP_STATE.users && APP_STATE.users[w.officeSelected]);
-            console.log('[Debug] Cached Users for', w.officeSelected, ':', cachedUsers);
 
             if (cachedUsers && cachedUsers.length > 0) {
                 populateUser(cachedUsers);

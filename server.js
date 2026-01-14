@@ -1100,7 +1100,7 @@ function getUserListDirectByOffice(officeName) {
       if (!r.name || r.name.length === 0) return false; // Empty check only
       return r.office === '' || r.office === targetOffice;
     })
-    .map(r => ({ userName: r.name }));
+    .map(r => r.name); // Return simple string array
 }
 
 function getStaffListDirectByOffice(officeName) {
