@@ -1574,9 +1574,11 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
         // 1. Basic Checks
         if (!r[0]) continue; // ID required
 
-        // Status Check (Must be Approved, etc)
+        // Status Check (Strict Whitelist: Approved Only)
+        // Fixes discrepancy where 'Pending' or other statuses might sneak in.
         const status = (r[11] || '未承認').toString().trim();
-        if (status === '未承認' || status === '差戻し' || status === '差戻') continue;
+        // Allow '承認済' or '承認済み' (Handling variation)
+        if (status !== '承認済' && status !== '承認済み') continue;
 
         // 2. Filter Checks
         const occurDate = r[2] instanceof Date ? r[2] : new Date(r[2]);
