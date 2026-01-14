@@ -5847,6 +5847,9 @@
                 btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Outputting...';
             }
 
+            const w = getWhoami();
+            const officeName = w ? w.officeSelected : '';
+
             google.script.run.withSuccessHandler(csv => {
                 if (btn) {
                     btn.disabled = false;
@@ -5868,7 +5871,7 @@
                     link.setAttribute("href", url);
                     const d = new Date();
                     const dateStr = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
-                    link.setAttribute("download", `accident_report_${APP_STATE.currentUser?.office || 'export'}_${dateStr}.csv`);
+                    link.setAttribute("download", `accident_report_${officeName || 'export'}_${dateStr}.csv`);
                     link.style.visibility = 'hidden';
                     document.body.appendChild(link);
                     link.click();
@@ -5880,7 +5883,7 @@
                     btn.innerHTML = originalText;
                 }
                 alert('Error: ' + e);
-            }).getIncidentCsvData(APP_STATE.currentUser?.office, filters);
+            }).getIncidentCsvData(officeName, filters);
         }
 
         function loadIncidentHistory(isAppend = false) {
