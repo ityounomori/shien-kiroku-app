@@ -1374,90 +1374,104 @@
 
                         <!-- 2. 履歴 (History) -->
                         <section id="incidentHistorySection" class="max-w-6xl mx-auto py-4 hidden">
-                            <!-- Filters (Modern v1.0) -->
-                            <div class="bg-white p-4 rounded-2xl border border-gray-200 mb-6 shadow-sm">
-                                <div class="flex flex-col gap-3">
-                                    <!-- Row 1: Segments & Status -->
-                                    <div class="flex flex-wrap items-center justify-between gap-3">
-                                        <!-- Period Segments -->
-                                        <div
-                                            class="flex bg-gray-100 rounded-lg p-1 overflow-x-auto hide-scrollbar max-w-full">
-                                            <button onclick="setHistoryRange('today')"
-                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
-                                                data-val="today">今日</button>
-                                            <button onclick="setHistoryRange('week')"
-                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
-                                                data-val="week">今週</button>
-                                            <button onclick="setHistoryRange('current-month')"
-                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white text-indigo-600 shadow-sm whitespace-nowrap transition"
-                                                data-val="current-month">今月</button>
-                                            <button onclick="setHistoryRange('past30')"
-                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
-                                                data-val="past30">過去30日</button>
-                                            <button onclick="setHistoryRange('custom')"
-                                                class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition"
-                                                data-val="custom">期間指定</button>
-                                        </div>
-
-                                        <!-- Status Info -->
-                                        <div class="flex items-center gap-3 ml-auto shrink-0">
-                                            <div
-                                                class="flex items-center gap-1 bg-emerald-50 px-2 py-1 rounded text-emerald-700 border border-emerald-100">
-                                                <i class="fas fa-check-circle text-[10px]"></i>
-                                                <span class="text-[10px] font-bold">承認済み</span>
-                                            </div>
-                                            <button onclick="switchIncidentTab('pending')"
-                                                class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1">
-                                                未承認は対応待ちへ <i class="fas fa-arrow-right"></i>
-                                            </button>
-                                        </div>
+                            <!-- Filters (Compact Panel v2) -->
+                            <div class="bg-white rounded-2xl border border-gray-200 mb-6 shadow-sm overflow-hidden">
+                                <!-- 1. Collapsed Header (Always Visible) -->
+                                <div
+                                    class="p-3 pl-4 flex flex-wrap items-center justify-between gap-3 bg-white relative z-10 min-h-[52px]">
+                                    <!-- Chips Area -->
+                                    <div class="flex flex-wrap items-center gap-2 flex-grow">
+                                        <div id="hist-active-chips" class="flex flex-wrap gap-1"></div>
                                     </div>
 
-                                    <!-- Row 2: Custom Date Inputs (Hidden by default) -->
-                                    <div id="filter-date-inputs"
-                                        class="hidden grid grid-cols-2 gap-3 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                                        <input type="date" id="hist-from"
-                                            class="text-xs p-2 border border-gray-200 rounded block w-full bg-white">
-                                        <input type="date" id="hist-to"
-                                            class="text-xs p-2 border border-gray-200 rounded block w-full bg-white">
-                                    </div>
-
-                                    <!-- Row 3: Extended Conditions (Accordion) -->
-                                    <div id="filter-extended-area"
-                                        class="hidden grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-gray-100">
-                                        <!-- Type -->
-                                        <select id="hist-type"
-                                            class="text-xs p-2 border border-gray-200 rounded-lg w-full bg-gray-50 focus:bg-white transition">
-                                            <option value="">全ての種別</option>
-                                            <option>ヒヤリハット</option>
-                                            <option>事故</option>
-                                            <option>苦情</option>
-                                        </select>
-                                        <!-- User -->
-                                        <select id="hist-user"
-                                            class="text-xs p-2 border border-gray-200 rounded-lg w-full bg-gray-50 focus:bg-white transition">
-                                            <option value="">全ての利用者</option>
-                                        </select>
-                                        <!-- Recorder -->
-                                        <input type="text" id="hist-recorder" placeholder="記録者名 (部分一致)"
-                                            class="text-xs p-2 border border-gray-200 rounded-lg w-full bg-gray-50 focus:bg-white transition">
-                                    </div>
-
-                                    <!-- Row 4: Action Bar -->
-                                    <div class="flex flex-wrap items-center justify-between gap-2 pt-2">
-                                        <button id="btn-toggle-extended" onclick="toggleExtendedFilters()"
-                                            class="text-xs font-bold text-gray-500 hover:text-indigo-600 flex items-center gap-1 transition">
-                                            <i class="fas fa-plus-circle"></i> 条件を追加
+                                    <!-- Right Actions -->
+                                    <div class="flex items-center gap-3 shrink-0">
+                                        <button onclick="switchIncidentTab('pending')"
+                                            class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1 mr-2">
+                                            未承認へ <i class="fas fa-arrow-right"></i>
                                         </button>
 
-                                        <div
-                                            class="flex flex-wrap items-center gap-2 ml-auto w-full sm:w-auto justify-end">
-                                            <!-- Chips Area (Inline) -->
-                                            <div id="hist-active-chips" class="flex flex-wrap gap-1"></div>
+                                        <!-- Toggle Button -->
+                                        <button onclick="toggleFilterPanel()" id="btn-filter-toggle"
+                                            class="text-xs font-bold text-gray-700 hover:text-indigo-600 flex items-center gap-1 transition px-3 py-1.5 rounded-lg bg-gray-50 hover:bg-gray-100 border border-transparent hover:border-gray-200">
+                                            <span id="txt-filter-toggle">条件を指定</span>
+                                            <i id="icon-filter-toggle"
+                                                class="fas fa-chevron-down transition-transform duration-200"></i>
+                                        </button>
+                                    </div>
+                                </div>
 
-                                            <button onclick="loadIncidentHistory()"
-                                                class="px-5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm transition flex items-center gap-1 ml-2">
-                                                <i class="fas fa-search"></i> 検索
+                                <!-- 2. Expanded Panel (Hidden by default) -->
+                                <div id="filter-panel"
+                                    class="hidden bg-gray-50 border-t border-gray-100 p-5 transition-all duration-300">
+                                    <div class="flex flex-col gap-5">
+                                        <!-- Section: Period -->
+                                        <div>
+                                            <label class="text-xs font-bold text-gray-500 mb-2 block">① 期間 <span
+                                                    class="text-[10px] font-normal text-gray-400 ml-1">※必須</span></label>
+                                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                                                <button onclick="setHistoryRange('today')"
+                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
+                                                    data-val="today">今日</button>
+                                                <button onclick="setHistoryRange('week')"
+                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
+                                                    data-val="week">今週</button>
+                                                <button onclick="setHistoryRange('current-month')"
+                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm transition"
+                                                    data-val="current-month">今月</button>
+                                                <button onclick="setHistoryRange('past30')"
+                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
+                                                    data-val="past30">過去30日</button>
+                                                <button onclick="setHistoryRange('custom')"
+                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
+                                                    data-val="custom">期間指定</button>
+                                            </div>
+                                            <!-- Custom Date Inputs -->
+                                            <div id="filter-date-inputs" class="hidden grid grid-cols-2 gap-3 max-w-sm">
+                                                <input type="date" id="hist-from"
+                                                    class="text-xs p-2 border border-gray-200 rounded block w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none">
+                                                <input type="date" id="hist-to"
+                                                    class="text-xs p-2 border border-gray-200 rounded block w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none">
+                                            </div>
+                                        </div>
+
+                                        <!-- Section: Filters -->
+                                        <div>
+                                            <label class="text-xs font-bold text-gray-500 mb-2 block">② 絞り込み <span
+                                                    class="text-[10px] font-normal text-gray-400 ml-1">※任意</span></label>
+                                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                                <select id="hist-type"
+                                                    class="text-xs p-2.5 border border-gray-200 rounded-lg w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition">
+                                                    <option value="">全ての種別</option>
+                                                    <option>ヒヤリハット</option>
+                                                    <option>事故</option>
+                                                    <option>苦情</option>
+                                                </select>
+                                                <select id="hist-user"
+                                                    class="text-xs p-2.5 border border-gray-200 rounded-lg w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition">
+                                                    <option value="">全ての利用者</option>
+                                                </select>
+                                                <input type="text" id="hist-recorder" placeholder="記録者名 (部分一致)"
+                                                    class="text-xs p-2.5 border border-gray-200 rounded-lg w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition">
+                                            </div>
+                                        </div>
+
+                                        <!-- Footer Actions -->
+                                        <div
+                                            class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-200 mt-1">
+                                            <div class="flex items-center gap-4">
+                                                <button onclick="clearHistoryFilters()"
+                                                    class="text-xs font-bold text-gray-400 hover:text-red-500 transition flex items-center gap-1">
+                                                    <i class="fas fa-trash-alt"></i> クリア
+                                                </button>
+                                                <button onclick="exportIncidentToCsv()"
+                                                    class="text-xs font-bold text-slate-500 hover:text-indigo-600 transition flex items-center gap-1">
+                                                    <i class="fas fa-file-csv"></i> CSV出力(管理)
+                                                </button>
+                                            </div>
+                                            <button onclick="applyCompactFilters()"
+                                                class="px-6 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-lg shadow-indigo-100 transition flex items-center gap-2">
+                                                <i class="fas fa-check"></i> 適用して検索
                                             </button>
                                         </div>
                                     </div>
@@ -5569,6 +5583,24 @@
             }
         }
 
+        function toggleFilterPanel() {
+            const panel = document.getElementById('filter-panel');
+            const icon = document.getElementById('icon-filter-toggle');
+            const txt = document.getElementById('txt-filter-toggle');
+
+            if (panel.classList.contains('hidden')) {
+                // Open
+                panel.classList.remove('hidden');
+                if (icon) icon.classList.add('rotate-180');
+                if (txt) txt.textContent = '閉じる';
+            } else {
+                // Close
+                panel.classList.add('hidden');
+                if (icon) icon.classList.remove('rotate-180');
+                if (txt) txt.textContent = '条件を指定';
+            }
+        }
+
         function setHistoryRange(type) {
             const fromEl = document.getElementById('hist-from');
             const toEl = document.getElementById('hist-to');
@@ -5624,24 +5656,24 @@
             document.querySelectorAll('.segment-btn').forEach(btn => {
                 const isTarget = btn.getAttribute('data-val') === type;
                 if (isTarget) {
-                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white text-indigo-600 shadow-sm whitespace-nowrap transition cursor-default ring-1 ring-indigo-100";
+                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm whitespace-nowrap transition cursor-default";
                 } else {
-                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition bg-transparent hover:bg-gray-200";
+                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition";
                 }
             });
         }
 
-        function toggleExtendedFilters() {
-            const area = document.getElementById('filter-extended-area');
-            const btn = document.getElementById('btn-toggle-extended');
-            if (area.classList.contains('hidden')) {
-                area.classList.remove('hidden');
-                btn.innerHTML = '<i class="fas fa-minus-circle"></i> 条件を隠す';
-            } else {
-                area.classList.add('hidden');
-                btn.innerHTML = '<i class="fas fa-plus-circle"></i> 条件を追加';
+        function applyCompactFilters() {
+            // Close panel
+            const panel = document.getElementById('filter-panel');
+            if (!panel.classList.contains('hidden')) {
+                toggleFilterPanel(); // Close it
             }
+            // Search
+            loadIncidentHistory();
         }
+
+
 
         function renderActiveChips() {
             const container = document.getElementById('hist-active-chips');
@@ -5650,13 +5682,13 @@
 
             const createChip = (label, key, isLocked = false) => {
                 const div = document.createElement('div');
-                div.className = `flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border ${isLocked ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`;
+                div.className = `flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold border ${isLocked ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-indigo-50 text-indigo-700 border-indigo-100'}`;
 
                 div.innerHTML = `<span>${label}</span>`;
                 if (!isLocked) {
                     const close = document.createElement('button');
                     close.innerHTML = '<i class="fas fa-times"></i>';
-                    close.className = "ml-1 hover:text-indigo-900";
+                    close.className = "ml-1.5 text-indigo-400 hover:text-indigo-800 transition";
                     close.onclick = (e) => { e.stopPropagation(); removeFilter(key); };
                     div.appendChild(close);
                 }
@@ -5664,7 +5696,7 @@
             };
 
             // 1. Status (Locked)
-            createChip('状態=承認済み', 'status', true);
+            createChip('<i class="fas fa-check-circle"></i> 承認済み', 'status', true);
 
             // 2. Date
             const from = document.getElementById('hist-from').value;
@@ -5674,20 +5706,20 @@
                 if (from && to) dateLabel = `${from}～${to}`;
                 else if (from) dateLabel = `${from}～`;
                 else if (to) dateLabel = `～${to}`;
-                createChip(`期間=${dateLabel}`, 'date');
+                createChip(`期間: ${dateLabel}`, 'date');
             }
 
             // 3. Type
             const type = document.getElementById('hist-type').value;
-            if (type) createChip(`種別=${type}`, 'type');
+            if (type) createChip(`種別: ${type}`, 'type');
 
             // 4. User
             const user = document.getElementById('hist-user').value;
-            if (user) createChip(`利用者=${user}`, 'user');
+            if (user) createChip(`利用者: ${user}`, 'user');
 
             // 5. Recorder
             const rec = document.getElementById('hist-recorder')?.value;
-            if (rec) createChip(`記録者=${rec}`, 'recorder');
+            if (rec) createChip(`記録者: ${rec}`, 'recorder');
         }
 
         function removeFilter(key) {
@@ -5695,8 +5727,9 @@
                 document.getElementById('hist-from').value = '';
                 document.getElementById('hist-to').value = '';
                 // Reset styling
+                setHistoryRange('all');
                 document.querySelectorAll('.segment-btn').forEach(btn =>
-                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition bg-transparent hover:bg-gray-200"
+                    btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
                 );
             } else if (key === 'type') {
                 document.getElementById('hist-type').value = '';
@@ -5716,9 +5749,8 @@
             if (document.getElementById('hist-recorder')) document.getElementById('hist-recorder').value = '';
 
             // Reset segments
-            setHistoryRange('all');
             document.querySelectorAll('.segment-btn').forEach(btn =>
-                btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md text-gray-500 hover:text-gray-700 whitespace-nowrap transition bg-transparent hover:bg-gray-200"
+                btn.className = "segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
             );
 
             loadIncidentHistory();
