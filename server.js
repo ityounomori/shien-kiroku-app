@@ -1635,7 +1635,107 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
     };
 
   } catch (e) {
-    console.error('getIncidentHistory Error:', e);
-    return { data: [], total: 0, debug: { error: e.toString() } };
+  }
+}
+
+function getIncidentCsvData(officeName, filters) {
+  try {
+    const targetSheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET)
+      ? SHEET_NAMES.INCIDENT_SHEET
+      : 'incidents';
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const sheet = ss.getSheetByName(targetSheetName);
+
+    if (!sheet) return 'Error: Sheet not found';
+
+    const lastRow = sheet.getLastRow();
+    if (lastRow < 2) return 'ID,発生日時,記録者,利用者,種別,状況,原因,対応,再発防止策,ステータス';
+
+    // Normalized Filters (Same as getIncidentHistory)
+    const normFilters = {};
+    if (filters) {
+      if (filters.user) normFilters.user = (filters.user).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
+      if (filters.recorder) normFilters.recorder = (filters.recorder).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
+      if (filters.from) {
+        const d = new Date(filters.from);
+        d.setHours(0, 0, 0, 0);
+        normFilters.from = d;
+      }
+      if (filters.to) {
+        const d = new Date(filters.to);
+        d.setHours(23, 59, 59, 999);
+        normFilters.to = d;
+      }
+    }
+
+    // Scan All Rows (Reverse Order)
+    // Note: No iteration limit here. Might hit timeout if >100k rows.
+    // Assuming manageable size for now.
+    const CHUNK_SIZE = 5000;
+    let currentRow = lastRow;
+    let csvRows = [];
+
+    // Header
+    csvRows.push(['ID', '発生日時', '記録者', '利用者', '種別', '場所', '状況', '原因', '対応', '再発防止策', 'ステータス', '承認者', '承認日時'].join(','));
+
+    while (currentRow >= 2) {
+      const startRow = Math.max(2, currentRow - CHUNK_SIZE + 1);
+      const numRows = currentRow - startRow + 1;
+      if (numRows <= 0) break;
+
+      const data = sheet.getRange(startRow, 1, numRows, 16).getValues();
+
+      for (let i = data.length - 1; i >= 0; i--) {
+        const r = data[i];
+        if (!r[0]) continue;
+
+        // Status Check (Strict Whitelist)
+        const status = (r[11] || '未承認').toString().trim();
+        if (status !== '承認済' && status !== '承認済み') continue;
+
+        const occurDate = r[2] instanceof Date ? r[2] : new Date(r[2]);
+
+        // Filter Checks
+        if (normFilters.from && occurDate < normFilters.from) continue;
+        if (normFilters.to && occurDate > normFilters.to) continue;
+        if (filters && filters.type && r[5] !== filters.type) continue;
+
+        if (normFilters.user) {
+          const target = (String(r[4] || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
+          if (target !== normFilters.user) continue;
+        }
+        if (normFilters.recorder) {
+          const target = (String(r[3] || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
+          if (target !== normFilters.recorder) continue;
+        }
+
+        // CSV Row Construction
+        // Escape quotes
+        const escape = (val) => `"${(String(val || '')).replace(/"/g, '""')}"`;
+
+        const row = [
+          r[0], // ID
+          occurDate instanceof Date ? Utilities.formatDate(occurDate, "JST", "yyyy/MM/dd HH:mm") : r[2],
+          escape(r[3]), // Recorder
+          escape(r[4]), // User
+          escape(r[5]), // Type
+          escape(r[6]), // Place
+          escape(r[7]), // Situation
+          escape(r[8]), // Cause
+          escape(r[9]), // Response
+          escape(r[10]), // Prevention
+          status,
+          escape(r[12]), // Approver
+          r[13] instanceof Date ? Utilities.formatDate(r[13], "JST", "yyyy/MM/dd HH:mm") : r[13]
+        ];
+        csvRows.push(row.join(','));
+      }
+      currentRow = startRow - 1;
+    }
+
+    return csvRows.join('\r\n');
+
+  } catch (e) {
+    return 'Error: ' + e.toString();
   }
 }

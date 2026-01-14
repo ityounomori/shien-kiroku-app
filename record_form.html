@@ -5816,6 +5816,63 @@
 
         // [v52 Feature] Server-side Pagination for Incident History
         // Replaces previous Client-side pagination logic
+        function exportIncidentToCsv() {
+            // Use current filters from State if available, or DOM?
+            // Better only export what is currently filtered in State context if possible.
+            // If State filters are not set (e.g. before initial load), use default.
+            const filters = APP_STATE.history && APP_STATE.history.filters
+                ? APP_STATE.history.filters
+                : {
+                    from: document.getElementById('hist-from').value,
+                    to: document.getElementById('hist-to').value,
+                    type: document.getElementById('hist-type').value,
+                    user: document.getElementById('hist-user').value,
+                    recorder: document.getElementById('hist-recorder')?.value || ''
+                };
+
+            const btn = document.querySelector('button[onclick="exportIncidentToCsv()"]');
+            if (btn) {
+                var originalText = btn.innerHTML;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Outputting...';
+            }
+
+            google.script.run.withSuccessHandler(csv => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+
+                if (csv.startsWith('Error:')) {
+                    alert(csv);
+                    return;
+                }
+
+                // Add BOM for Excel compatibility (UTF-8)
+                const bom = new Uint8Array([0xEF, 0xBB, 0xBF]);
+                const blob = new Blob([bom, csv], { type: 'text/csv;charset=utf-8' });
+
+                const link = document.createElement("a");
+                if (link.download !== undefined) {
+                    const url = URL.createObjectURL(blob);
+                    link.setAttribute("href", url);
+                    const d = new Date();
+                    const dateStr = d.getFullYear() + ('0' + (d.getMonth() + 1)).slice(-2) + ('0' + d.getDate()).slice(-2);
+                    link.setAttribute("download", `accident_report_${APP_STATE.currentUser?.office || 'export'}_${dateStr}.csv`);
+                    link.style.visibility = 'hidden';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                }
+            }).withFailureHandler(e => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+                alert('Error: ' + e);
+            }).getIncidentCsvData(APP_STATE.currentUser?.office, filters);
+        }
+
         function loadIncidentHistory(isAppend = false) {
             const w = getWhoami();
             if (!w) return;
