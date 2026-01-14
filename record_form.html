@@ -1374,43 +1374,71 @@
 
                         <!-- 2. 履歴 (History) -->
                         <section id="incidentHistorySection" class="max-w-6xl mx-auto py-4 hidden">
-                            <!-- Filters -->
-                            <div class="bg-white p-6 rounded-2xl border border-gray-200 mb-6 shadow-sm">
-                                <div class="grid grid-cols-2 sm:grid-cols-6 gap-4">
-                                    <div class="col-span-1">
-                                        <label class="text-[10px] font-bold text-gray-400 block mb-1"
-                                            for="hist-from">FROM</label>
-                                        <input type="date" id="hist-from"
-                                            class="w-full text-xs p-2.5 border border-gray-200 rounded-xl">
+                            <!-- Filters (Revamped v53) -->
+                            <div class="bg-white p-5 rounded-2xl border border-gray-200 mb-6 shadow-sm">
+                                <div class="flex flex-col gap-4">
+                                    <!-- Top Row: Presets & Status -->
+                                    <div class="flex flex-wrap items-center justify-between gap-3">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-gray-500">期間:</span>
+                                            <div class="flex bg-gray-100 rounded-lg p-0.5">
+                                                <button onclick="setHistoryRange('current-month')"
+                                                    class="px-3 py-1.5 text-xs font-bold rounded-md transition bg-white text-indigo-600 shadow-sm"
+                                                    id="btn-range-month">今月</button>
+                                                <button onclick="setHistoryRange('all')"
+                                                    class="px-3 py-1.5 text-xs font-bold rounded-md transition text-gray-500 hover:text-gray-700"
+                                                    id="btn-range-all">全期間</button>
+                                            </div>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-xs font-bold text-gray-400">状態:</span>
+                                            <span
+                                                class="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-[10px] font-bold rounded-full">承認済み</span>
+                                        </div>
                                     </div>
-                                    <div class="col-span-1">
-                                        <label class="text-[10px] font-bold text-gray-400 block mb-1"
-                                            for="hist-to">TO</label>
-                                        <input type="date" id="hist-to"
-                                            class="w-full text-xs p-2.5 border border-gray-200 rounded-xl">
+
+                                    <!-- Middle Row: Inputs -->
+                                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                                        <!-- Date Range -->
+                                        <div class="col-span-1">
+                                            <input type="date" id="hist-from"
+                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white transition"
+                                                placeholder="開始日">
+                                        </div>
+                                        <div class="col-span-1">
+                                            <input type="date" id="hist-to"
+                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-gray-50 focus:bg-white transition"
+                                                placeholder="終了日">
+                                        </div>
+                                        <!-- Type -->
+                                        <div class="col-span-1">
+                                            <select id="hist-type"
+                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-white">
+                                                <option value="">全ての種別</option>
+                                                <option>ヒヤリハット</option>
+                                                <option>事故</option>
+                                                <option>苦情</option>
+                                            </select>
+                                        </div>
+                                        <!-- User (Dropdown) -->
+                                        <div class="col-span-1">
+                                            <select id="hist-user"
+                                                class="w-full text-xs p-2.5 border border-gray-200 rounded-xl bg-white">
+                                                <option value="">全ての利用者</option>
+                                                <!-- Dyn Loaded -->
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="col-span-1">
-                                        <label class="text-[10px] font-bold text-gray-400 block mb-1"
-                                            for="hist-type">種別</label>
-                                        <select id="hist-type"
-                                            class="w-full text-xs p-2.5 border border-gray-200 rounded-xl">
-                                            <option value="">全て</option>
-                                            <option>ヒヤリハット</option>
-                                            <option>事故</option>
-                                            <option>苦情</option>
-                                        </select>
-                                    </div>
-                                    <div class="col-span-1">
-                                        <label class="text-[10px] font-bold text-gray-400 block mb-1"
-                                            for="hist-user">利用者</label>
-                                        <input type="text" id="hist-user" placeholder="氏名"
-                                            class="w-full text-xs p-2.5 border border-gray-200 rounded-xl">
-                                    </div>
-                                    <div class="col-span-2 flex items-end gap-2">
-                                        <button onclick="loadIncidentHistory()"
-                                            class="flex-1 bg-indigo-600 text-white text-xs py-2.5 rounded-xl font-bold shadow-lg shadow-indigo-100">検索実行</button>
+
+                                    <!-- Bottom Row: Actions -->
+                                    <div
+                                        class="flex flex-wrap items-center justify-end gap-2 pt-2 border-t border-gray-100">
                                         <button onclick="clearHistoryFilters()"
-                                            class="bg-gray-100 text-gray-500 text-xs py-2.5 px-4 rounded-xl font-bold">リセット</button>
+                                            class="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-gray-500 bg-gray-100 hover:bg-gray-200 rounded-xl transition">クリア</button>
+                                        <button onclick="loadIncidentHistory()"
+                                            class="flex-1 sm:flex-none px-6 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-lg shadow-indigo-100 transition flex items-center justify-center gap-2">
+                                            <i class="fas fa-search"></i> 検索実行
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -4640,7 +4668,10 @@
             document.getElementById('incidentApprovalSection')?.classList.toggle('hidden', tab !== 'approval');
 
             if (tab === 'pending') loadIncidentPendingList();
-            if (tab === 'history') loadIncidentHistory();
+            if (tab === 'history') {
+                initHistoryFilters(); // [v53] Init Filters (Dropdowns etc)
+                loadIncidentHistory();
+            }
             if (tab === 'approval') loadIncidentApprovalList();
         }
 
@@ -5490,6 +5521,99 @@
             }
         }
         window.addEventListener('hashchange', route);
+
+        // -----------------------------------------------------------
+        // Incident History Filter Logic (v53)
+        // -----------------------------------------------------------
+        function initHistoryFilters() {
+            // 1. Populate User Dropdown if empty
+            const userSelect = document.getElementById('hist-user');
+            if (userSelect && userSelect.options.length <= 1) { // Only default option exists
+                const w = getWhoami();
+                // Check if users list is loaded for current office
+                const users = (APP_STATE.users && APP_STATE.users[w.officeSelected]) || [];
+
+                // If users not loaded, might need to wait or trigger load?
+                // Usually loadUsers() is called on init, so likely available.
+                // Sort users for better UX
+                const sortedUsers = [...users].sort((a, b) => a.localeCompare(b, 'ja'));
+
+                sortedUsers.forEach(u => {
+                    const opt = document.createElement('option');
+                    opt.value = u;
+                    opt.textContent = u;
+                    userSelect.appendChild(opt);
+                });
+            }
+
+            // 2. Initialize Range Buttons Style (Default: None or current check)
+            // No default auto-selection to avoid confusion, let user decide.
+        }
+
+        function setHistoryRange(type) {
+            const fromEl = document.getElementById('hist-from');
+            const toEl = document.getElementById('hist-to');
+            if (!fromEl || !toEl) return;
+
+            const now = new Date();
+            let fromVal = '';
+            let toVal = '';
+
+            if (type === 'current-month') {
+                // First day to Last day of current month
+                const y = now.getFullYear();
+                const m = now.getMonth();
+                const firstDay = new Date(y, m, 1);
+                const lastDay = new Date(y, m + 1, 0);
+
+                // Format YYYY-MM-DD
+                const fmt = (d) => {
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    return `${d.getFullYear()}-${mm}-${dd}`;
+                };
+                fromVal = fmt(firstDay);
+                toVal = fmt(lastDay);
+            } else if (type === 'all') {
+                fromVal = '';
+                toVal = '';
+            }
+
+            fromEl.value = fromVal;
+            toEl.value = toVal;
+
+            updateRangeButtonStyles(type);
+        }
+
+        function updateRangeButtonStyles(activeType) {
+            const btnMonth = document.getElementById('btn-range-month');
+            const btnAll = document.getElementById('btn-range-all');
+
+            const setActive = (btn, active) => {
+                if (!btn) return;
+                if (active) {
+                    btn.className = "px-3 py-1.5 text-xs font-bold rounded-md transition bg-white text-indigo-600 shadow-sm";
+                } else {
+                    btn.className = "px-3 py-1.5 text-xs font-bold rounded-md transition text-gray-500 hover:text-gray-700";
+                }
+            };
+
+            if (activeType) {
+                setActive(btnMonth, activeType === 'current-month');
+                setActive(btnAll, activeType === 'all');
+            }
+        }
+
+        function clearHistoryFilters() {
+            document.getElementById('hist-from').value = '';
+            document.getElementById('hist-to').value = '';
+            document.getElementById('hist-type').value = '';
+            document.getElementById('hist-user').value = '';
+            updateRangeButtonStyles('all');
+
+            // Reload
+            loadIncidentHistory();
+        }
 
         // [v52 Feature] Server-side Pagination for Incident History
         // Replaces previous Client-side pagination logic
