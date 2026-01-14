@@ -1667,14 +1667,14 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
         const normUser = (filters.user).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
         filtered = filtered.filter(i => {
           const target = (i.user || i.userName || '').replace(/[\s\u3000]+/g, '').toLowerCase();
-          return target.includes(normUser);
+          return target === normUser;
         });
       }
       if (filters.recorder) {
         const normRec = (filters.recorder).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
         filtered = filtered.filter(i => {
           const target = (i.recorder || '').replace(/[\s\u3000]+/g, '').toLowerCase();
-          return target.includes(normRec);
+          return target === normRec;
         });
       }
     }
