@@ -1386,9 +1386,9 @@
 
                                     <!-- Right Actions -->
                                     <div class="flex items-center gap-3 shrink-0">
-                                        <button onclick="switchIncidentTab('pending')"
+                                        <button onclick="goToPendingOrApproval()"
                                             class="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1 mr-2">
-                                            未承認へ <i class="fas fa-arrow-right"></i>
+                                            未承認・承認待ちへ <i class="fas fa-arrow-right"></i>
                                         </button>
 
                                         <!-- Toggle Button -->
@@ -1446,6 +1446,8 @@
                                                     <option>ヒヤリハット</option>
                                                     <option>事故</option>
                                                     <option>苦情</option>
+                                                    <option>その他</option>
+                                                    <option>外部(近隣・その他)</option>
                                                 </select>
                                                 <select id="hist-user"
                                                     class="text-xs p-2.5 border border-gray-200 rounded-lg w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition">
@@ -5562,24 +5564,50 @@
         // -----------------------------------------------------------
         function initHistoryFilters() {
             // 1. Populate User Dropdown
-            const userSelect = document.getElementById('hist-user');
-            if (userSelect && userSelect.options.length <= 1) {
-                const w = getWhoami();
-                const users = (APP_STATE.users && APP_STATE.users[w.officeSelected]) || [];
-                const sortedUsers = [...users].sort((a, b) => a.localeCompare(b, 'ja'));
+            const populate = (userList) => {
+                const userSelect = document.getElementById('hist-user');
+                if (!userSelect) return;
+                // Keep "All Users"
+                while (userSelect.options.length > 1) {
+                    userSelect.remove(1);
+                }
+                const sortedUsers = [...userList].sort((a, b) => a.localeCompare(b, 'ja'));
                 sortedUsers.forEach(u => {
                     const opt = document.createElement('option');
                     opt.value = u;
                     opt.textContent = u;
                     userSelect.appendChild(opt);
                 });
+            };
+
+            const w = getWhoami();
+            const cachedUsers = (APP_STATE.users && APP_STATE.users[w.officeSelected]);
+
+            if (cachedUsers && cachedUsers.length > 0) {
+                populate(cachedUsers);
+            } else {
+                // Fetch if empty
+                google.script.run.withSuccessHandler(function (users) {
+                    if (APP_STATE.users) APP_STATE.users[w.officeSelected] = users;
+                    populate(users);
+                }).getUserListDirectByOffice(w.officeSelected);
             }
 
             // 2. Default Range: Current Month (if empty)
             if (!document.getElementById('hist-from').value) {
                 setHistoryRange('current-month');
             } else {
+                // Initial chip render
                 renderActiveChips();
+            }
+        }
+
+        function goToPendingOrApproval() {
+            const w = getWhoami();
+            if (w.role === 'admin' || w.role === 'manager') {
+                switchIncidentTab('approval');
+            } else {
+                switchIncidentTab('pending');
             }
         }
 
