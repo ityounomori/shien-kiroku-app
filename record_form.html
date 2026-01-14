@@ -1477,7 +1477,8 @@
                             </div>
 
                             <div class="flex justify-between items-center mb-4 px-2">
-                                <h2 class="text-lg font-bold text-gray-800">事故報告履歴</h2>
+                                <h2 class="text-lg font-bold text-gray-800">事故報告履歴 <span id="hist-count-badge"
+                                        class="ml-2 text-sm text-gray-500 font-normal"></span></h2>
 
                             </div>
 
@@ -5890,6 +5891,12 @@
                 APP_STATE.history.offset += data.length;
                 APP_STATE.history.hasMore = hasMore;
                 APP_STATE.history.loading = false;
+
+                // Update Count Badge
+                const badge = document.getElementById('hist-count-badge');
+                if (badge) {
+                    badge.textContent = `表示: ${APP_STATE.history.items.length}件${hasMore ? '+' : ''}`;
+                }
 
                 // Render Logic
                 const isInitial = (!isAppend);
