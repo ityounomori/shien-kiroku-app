@@ -1535,165 +1535,101 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
 
     if (!sheet) return { data: [], total: 0, debug: { error: 'Sheet not found' } };
 
-    // 1. Load Data (Optimized)
+    // --- [v55 Performance] Chunked Reverse Search ---
+    const CHUNK_SIZE = 3000;
     const lastRow = sheet.getLastRow();
-    if (lastRow < 2) return { data: [], total: 0, hasMore: false };
 
-    let startRow = 2;
-    const SCAN_LIMIT = 3000;
-
-    // Default: Scan only last 3000 (Fastest for initial view)
-    startRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
-
-    // If Date Filter exists, we need to find the correct startRow
-    if (filters && filters.from) {
-      const targetDate = new Date(filters.from);
-      targetDate.setHours(0, 0, 0, 0); // Start of day
-
-      // Check the oldest date in current window (startRow)
-      // If it's newer than target, we need to go back.
-      // Optimization: Perform simple binary search to find start row
-
-      const getOccurDateAtRow = (r) => {
-        try {
-          const val = sheet.getRange(r, 3).getValue(); // Col 3 is occurDate
-          return val instanceof Date ? val : new Date(val);
-        } catch (e) { return null; }
-      };
-
-      // Check current startRow's date
-      const dataStart = getOccurDateAtRow(startRow);
-      if (dataStart && dataStart > targetDate) {
-        // Target is older, we need to search backwards
-        console.log(`[Perf] Target ${filters.from} is older than ${dataStart}. Executing Binary Search...`);
-
-        let low = 2;
-        let high = startRow;
-        let foundRow = 2;
-
-        // Binary Search (approx 10-15 steps for 100k rows)
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          const d = getOccurDateAtRow(mid);
-          if (!d) { low = mid + 1; continue; } // Invalid date, skip
-
-          if (d < targetDate) {
-            foundRow = mid; // Potential start
-            low = mid + 1; // Look for newer matches to get closer
-          } else {
-            high = mid - 1;
-          }
-        }
-        // Adjust startRow (Backtrack a bit to be safe)
-        startRow = Math.max(2, foundRow - 100);
-        console.log(`[Perf] Found start row: ${startRow}`);
-      }
-    }
-
-    const numRows = lastRow - startRow + 1;
-    // Safety limit to prevent memory error if range is too huge (e.g. 100k rows)
-    // If range > 10000, maybe we should slice? But filter logic needs raw data.
-    // For now, let's assume binary search narrows it down, or user accepts slow load for very old "From".
-    // Or we can cap it at 10000 rows max from startRow? 
-    // If user asks "All data from 2020", it might be huge.
-    // Let's enforce a hard Max Limit for safety.
-    const MAX_FETCH = 10000;
-    const actualNumRows = Math.min(numRows, MAX_FETCH);
-
-    // If we capped it, we are reading from startRow to startRow + MAX_FETCH
-    // But we want to read up to lastRow if possible. 
-    // Actually, for "History", we usually want NEWEST data.
-    // So if range is huge, we should prioritise reading from lastRow backwards?
-    // But filters.from implies we want data FROM that date.
-
-    // Logic: Read from startRow up to lastRow (if small enough)
-    // If too big, read first MAX_FETCH from startRow (ascending order) 
-    // OR last MAX_FETCH?
-    // Incident History display order is DESC (newest first).
-    // The user wants to see "Past 30 days" or "Specific Range".
-    // If "Specific Date 2023", we found the start row of 2023. We need data from there.
-
-    const data = sheet.getRange(startRow, 1, actualNumRows, 16).getValues();
-
-    // 2. Mapping
-    const mapped = [];
-    for (let i = 0; i < data.length; i++) {
-      const r = data[i];
-      if (!r[0]) continue; // Skip empty ID
-      mapped.push({
-        rowId: startRow + i, // Correct row ID based on startRow
-        id: String(r[0] || ''),
-        createdAt: r[1] instanceof Date ? Utilities.formatDate(r[1], "JST", "yyyy/MM/dd HH:mm") : String(r[1] || ''),
-        occurDate: r[2] instanceof Date ? Utilities.formatDate(r[2], "JST", "yyyy/MM/dd HH:mm") : String(r[2] || ''),
-        recorder: String(r[3] || ''),
-        user: String(r[4] || ''),
-        userName: String(r[4] || ''), // Alias
-        type: String(r[5] || ''),
-        place: String(r[6] || ''),
-        situation: String(r[7] || ''),
-        cause: String(r[8] || ''),
-        response: String(r[9] || ''),
-        prevention: String(r[10] || ''),
-        status: (r[11] || '未承認').toString().trim(),
-        approver: String(r[12] || ''),
-        approvedAt: r[13] instanceof Date ? Utilities.formatDate(r[13], "JST", "yyyy/MM/dd HH:mm") : String(r[13] || ''),
-        returnReason: String(r[14] || ''),
-        returnedAt: r[15] instanceof Date ? Utilities.formatDate(r[15], "JST", "yyyy/MM/dd HH:mm") : String(r[15] || '')
-      });
-    }
-
-    // Sort by OccurDate Descending (Newest Occurrence First)
-    mapped.sort((a, b) => {
-      const da = new Date(a.occurDate);
-      const db = new Date(b.occurDate);
-      return db - da;
-    });
-
-    // 3. Base Filtering (Status: Approved Only)
-    let filtered = mapped.filter(item => {
-      return item.status !== '未承認' && item.status !== '差戻し' && item.status !== '差戻';
-    });
-
-    // 4. Apply UI Filters
+    // Normalized Filters
+    const normFilters = {};
     if (filters) {
-      if (filters.from) filtered = filtered.filter(i => new Date(i.occurDate) >= new Date(filters.from));
+      if (filters.user) normFilters.user = (filters.user).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
+      if (filters.recorder) normFilters.recorder = (filters.recorder).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
+      if (filters.from) {
+        const d = new Date(filters.from);
+        d.setHours(0, 0, 0, 0);
+        normFilters.from = d;
+      }
       if (filters.to) {
-        const toDate = new Date(filters.to);
-        toDate.setHours(23, 59, 59, 999);
-        filtered = filtered.filter(i => new Date(i.occurDate) <= toDate);
-      }
-      if (filters.type) filtered = filtered.filter(i => i.type === filters.type);
-      if (filters.user) {
-        const normUser = (filters.user).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
-        filtered = filtered.filter(i => {
-          const target = (i.user || i.userName || '').replace(/[\s\u3000]+/g, '').toLowerCase();
-          return target === normUser;
-        });
-      }
-      if (filters.recorder) {
-        const normRec = (filters.recorder).toString().replace(/[\s\u3000]+/g, '').toLowerCase();
-        filtered = filtered.filter(i => {
-          const target = (i.recorder || '').replace(/[\s\u3000]+/g, '').toLowerCase();
-          return target === normRec;
-        });
+        const d = new Date(filters.to);
+        d.setHours(23, 59, 59, 999);
+        normFilters.to = d;
       }
     }
 
-    const total = filtered.length;
+    let results = [];
+    let currentRow = lastRow;
+    const targetCount = offset + limit + 1;
 
-    // 5. Pagination
-    const sliced = filtered.slice(offset, offset + limit);
+    while (currentRow >= 2 && results.length < targetCount) {
+      const startRow = Math.max(2, currentRow - CHUNK_SIZE + 1);
+      const numRows = currentRow - startRow + 1;
+      if (numRows <= 0) break;
+
+      const data = sheet.getRange(startRow, 1, numRows, 16).getValues();
+
+      // Scan reverse (newest first)
+      for (let i = data.length - 1; i >= 0; i--) {
+        const r = data[i];
+
+        // 1. Basic Checks
+        if (!r[0]) continue; // ID required
+
+        // Status Check (Must be Approved, etc)
+        const status = (r[11] || '未承認').toString().trim();
+        if (status === '未承認' || status === '差戻し' || status === '差戻') continue;
+
+        // 2. Filter Checks
+        const occurDate = r[2] instanceof Date ? r[2] : new Date(r[2]);
+
+        if (normFilters.from && occurDate < normFilters.from) continue;
+        if (normFilters.to && occurDate > normFilters.to) continue;
+        if (filters.type && r[5] !== filters.type) continue;
+
+        if (normFilters.user) {
+          const target = (String(r[4] || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
+          if (target !== normFilters.user) continue;
+        }
+        if (normFilters.recorder) {
+          const target = (String(r[3] || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
+          if (target !== normFilters.recorder) continue;
+        }
+
+        // 3. Mapping & Add
+        results.push({
+          rowId: startRow + i,
+          id: String(r[0] || ''),
+          createdAt: r[1] instanceof Date ? Utilities.formatDate(r[1], "JST", "yyyy/MM/dd HH:mm") : String(r[1] || ''),
+          occurDate: occurDate instanceof Date ? Utilities.formatDate(occurDate, "JST", "yyyy/MM/dd HH:mm") : String(occurDate || ''),
+          recorder: String(r[3] || ''),
+          user: String(r[4] || ''),
+          userName: String(r[4] || ''),
+          type: String(r[5] || ''),
+          place: String(r[6] || ''),
+          situation: String(r[7] || ''),
+          cause: String(r[8] || ''),
+          response: String(r[9] || ''),
+          prevention: String(r[10] || ''),
+          status: status,
+          approver: String(r[12] || ''),
+          approvedAt: r[13] instanceof Date ? Utilities.formatDate(r[13], "JST", "yyyy/MM/dd HH:mm") : String(r[13] || ''),
+          returnReason: String(r[14] || ''),
+          returnedAt: r[15] instanceof Date ? Utilities.formatDate(r[15], "JST", "yyyy/MM/dd HH:mm") : String(r[15] || '')
+        });
+
+        if (results.length >= targetCount) break;
+      }
+
+      currentRow = startRow - 1;
+    }
+
+    const hasMore = results.length > offset + limit;
+    const sliced = results.slice(offset, offset + limit);
 
     return {
       data: sliced,
-      total: total,
-      hasMore: (offset + limit < total),
-      debug: {
-        totalData: mapped.length,
-        filtered: total,
-        offset: offset,
-        limit: limit
-      }
+      total: 9999, // Unknown total with this scan method
+      hasMore: hasMore,
+      debug: { scannedRows: lastRow - currentRow, found: results.length }
     };
 
   } catch (e) {
