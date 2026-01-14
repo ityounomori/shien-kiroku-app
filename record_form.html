@@ -1419,15 +1419,9 @@
                                                 <button onclick="setHistoryRange('current-month')"
                                                     class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-indigo-50 border border-indigo-100 text-indigo-600 shadow-sm transition"
                                                     data-val="current-month">今月</button>
-                                                <button onclick="setHistoryRange('past30')"
-                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
-                                                    data-val="past30">過去30日</button>
-                                                <button onclick="setHistoryRange('custom')"
-                                                    class="segment-btn px-3 py-1.5 text-xs font-bold rounded-md bg-white border border-gray-200 text-gray-600 hover:text-indigo-600 shadow-sm transition"
-                                                    data-val="custom">期間指定</button>
                                             </div>
                                             <!-- Custom Date Inputs -->
-                                            <div id="filter-date-inputs" class="hidden grid grid-cols-2 gap-3 max-w-sm">
+                                            <div id="filter-date-inputs" class="grid grid-cols-2 gap-3 max-w-sm">
                                                 <input type="date" id="hist-from"
                                                     class="text-xs p-2 border border-gray-200 rounded block w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none">
                                                 <input type="date" id="hist-to"
@@ -1453,8 +1447,10 @@
                                                     class="text-xs p-2.5 border border-gray-200 rounded-lg w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition">
                                                     <option value="">全ての利用者</option>
                                                 </select>
-                                                <input type="text" id="hist-recorder" placeholder="記録者名 (部分一致)"
+                                                <select id="hist-recorder"
                                                     class="text-xs p-2.5 border border-gray-200 rounded-lg w-full bg-white focus:ring-2 focus:ring-indigo-100 outline-none transition">
+                                                    <option value="">全ての記録者</option>
+                                                </select>
                                             </div>
                                         </div>
 
@@ -1482,10 +1478,7 @@
 
                             <div class="flex justify-between items-center mb-4 px-2">
                                 <h2 class="text-lg font-bold text-gray-800">事故報告履歴</h2>
-                                <button onclick="exportIncidentToCsv()"
-                                    class="text-xs text-indigo-600 font-bold flex items-center gap-1 hover:underline">
-                                    CSV出力
-                                </button>
+
                             </div>
 
                             <!-- Card-based History View -->
@@ -5563,11 +5556,12 @@
         // Incident History Filter Logic (v53 Modern)
         // -----------------------------------------------------------
         function initHistoryFilters() {
+            const w = getWhoami();
+
             // 1. Populate User Dropdown
-            const populate = (userList) => {
+            const populateUser = (userList) => {
                 const userSelect = document.getElementById('hist-user');
                 if (!userSelect) return;
-                // Keep "All Users"
                 while (userSelect.options.length > 1) {
                     userSelect.remove(1);
                 }
@@ -5580,20 +5574,45 @@
                 });
             };
 
-            const w = getWhoami();
             const cachedUsers = (APP_STATE.users && APP_STATE.users[w.officeSelected]);
 
             if (cachedUsers && cachedUsers.length > 0) {
-                populate(cachedUsers);
+                populateUser(cachedUsers);
             } else {
                 // Fetch if empty
                 google.script.run.withSuccessHandler(function (users) {
-                    if (APP_STATE.users) APP_STATE.users[w.officeSelected] = users;
-                    populate(users);
+                    if (!APP_STATE.users) APP_STATE.users = {};
+                    if (!APP_STATE.users[w.officeSelected]) APP_STATE.users[w.officeSelected] = users;
+                    populateUser(users);
                 }).getUserListDirectByOffice(w.officeSelected);
             }
 
-            // 2. Default Range: Current Month (if empty)
+            // 2. Populate Recorder (Staff) Dropdown
+            const populateStaff = (staffList) => {
+                const recSelect = document.getElementById('hist-recorder');
+                if (!recSelect) return;
+                while (recSelect.options.length > 1) { recSelect.remove(1); }
+                const sorted = [...staffList].sort((a, b) => a.localeCompare(b, 'ja'));
+                sorted.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s;
+                    opt.textContent = s;
+                    recSelect.appendChild(opt);
+                });
+            };
+
+            const cachedStaff = (APP_STATE.staffs && APP_STATE.staffs[w.officeSelected]);
+            if (cachedStaff && cachedStaff.length > 0) {
+                populateStaff(cachedStaff);
+            } else {
+                google.script.run.withSuccessHandler(function (staffs) {
+                    if (!APP_STATE.staffs) APP_STATE.staffs = {};
+                    if (!APP_STATE.staffs[w.officeSelected]) APP_STATE.staffs[w.officeSelected] = staffs;
+                    populateStaff(staffs);
+                }).getStaffListDirectByOffice(w.officeSelected);
+            }
+
+            // 3. Default Range: Current Month (if empty)
             if (!document.getElementById('hist-from').value) {
                 setHistoryRange('current-month');
             } else {
@@ -5632,7 +5651,6 @@
         function setHistoryRange(type) {
             const fromEl = document.getElementById('hist-from');
             const toEl = document.getElementById('hist-to');
-            const dateInputs = document.getElementById('filter-date-inputs');
             if (!fromEl || !toEl) return;
 
             const now = new Date();
@@ -5649,7 +5667,6 @@
                 fromVal = fmt(now);
                 toVal = fmt(now);
             } else if (type === 'week') {
-                // Current week (Sunday start)
                 const day = now.getDay();
                 const diff = now.getDate() - day;
                 const first = new Date(now);
@@ -5663,21 +5680,12 @@
                 const m = now.getMonth();
                 fromVal = fmt(new Date(y, m, 1));
                 toVal = fmt(new Date(y, m + 1, 0));
-            } else if (type === 'past30') {
-                const past = new Date();
-                past.setDate(now.getDate() - 30);
-                fromVal = fmt(past);
-                toVal = fmt(now);
-            } else if (type === 'custom') {
-                // Keep values logic
             }
 
-            if (type !== 'custom') {
+            // Always set values if calculated
+            if (fromVal && toVal) {
                 fromEl.value = fromVal;
                 toEl.value = toVal;
-                if (dateInputs) dateInputs.classList.add('hidden');
-            } else {
-                if (dateInputs) dateInputs.classList.remove('hidden');
             }
 
             // Update Button Styles
