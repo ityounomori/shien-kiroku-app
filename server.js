@@ -1640,10 +1640,11 @@ function getIncidentHistory(officeName, limit = 50, offset = 0, filters = {}) {
 
 function getIncidentCsvData(officeName, filters) {
   try {
+    const files = getFilesByOffice(officeName);
     const targetSheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET)
       ? SHEET_NAMES.INCIDENT_SHEET
       : 'incidents';
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const ss = SpreadsheetApp.openById(files.incidentFileId);
     const sheet = ss.getSheetByName(targetSheetName);
 
     if (!sheet) return 'Error: Sheet not found';
