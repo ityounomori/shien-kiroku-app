@@ -4718,8 +4718,16 @@
         // 事故報告・ヒヤリハット (Incident Logic)
         // -----------------------------------------------------------
         // -----------------------------------------------------------
+        // -----------------------------------------------------------
         // 事故報告・ヒヤリハット (Incident Logic - Rearchitected)
         // -----------------------------------------------------------
+        function openIncidentSection() {
+            console.log('Opening Incident Section');
+            switchView('incident');
+            // Ensure first tab is active and data is loaded
+            switchIncidentTab('pending');
+        }
+
         function switchIncidentTab(tab) {
             // [Fix] Lock main scroll for independent section scrolling
             const mainWrapper = document.getElementById('main-scroll-wrapper');
