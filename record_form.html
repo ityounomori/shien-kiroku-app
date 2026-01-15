@@ -1,6 +1,6 @@
 ﻿<!-- record_form.html - v33 (Logic Restored & Final Bug Fixes) -->
 <!DOCTYPE html>
-<html>
+<html class="h-full">
 
 <head>
     <base target="_top">
@@ -920,7 +920,7 @@
     </style>
 </head>
 
-<body class="bg-gray-50 text-gray-800 pre-init">
+<body class="bg-gray-50 text-gray-800 pre-init h-full overflow-hidden">
     <!-- Dedicated Sign-in View -->
     <!-- Sign-in View (Full Screen) -->
     <div id="signinView"
@@ -3016,14 +3016,14 @@
                     wrapper.classList.remove('overflow-y-auto');
                     wrapper.classList.add('overflow-hidden');
                 }
-                if (app) app.classList.add('h-full', 'w-full', 'flex', 'flex-col');
+                if (app) app.classList.add('h-full', 'flex-1', 'w-full', 'flex', 'flex-col'); // Added flex-1
             } else {
                 // Unlock main scroll for other views
                 if (wrapper) {
                     wrapper.classList.remove('overflow-hidden');
                     wrapper.classList.add('overflow-y-auto');
                 }
-                if (app) app.classList.remove('h-full', 'w-full', 'flex', 'flex-col');
+                if (app) app.classList.remove('h-full', 'flex-1', 'w-full', 'flex', 'flex-col');
             }
 
             // スクロール位置をリセット
