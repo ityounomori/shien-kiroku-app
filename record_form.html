@@ -1364,9 +1364,11 @@
                             承認待ち
                         </button>
                     </div>
-                    <div id="incident-scroll-area" class="flex-1 overflow-hidden p-0 bg-gray-50 w-full">
+                    <div id="incident-scroll-area"
+                        class="flex-1 overflow-hidden p-0 bg-gray-50 w-full flex flex-col h-full">
                         <!-- 1. 対応待ちリスト -->
-                        <section id="incidentPendingSection" class="w-full h-full flex flex-col max-w-3xl mx-auto">
+                        <section id="incidentPendingSection"
+                            class="w-full h-full flex flex-col max-w-3xl mx-auto flex-1">
                             <div class="flex-1 overflow-y-auto custom-scrollbar p-4">
                                 <div id="incidentPendingCards" class="space-y-3">
                                     <!-- Dynamic Items -->
@@ -1377,7 +1379,8 @@
 
                     <!-- 2. 履歴 (History) -->
                     <!-- 2. 履歴 (History) -->
-                    <section id="incidentHistorySection" class="w-full h-full flex flex-col max-w-6xl mx-auto hidden">
+                    <section id="incidentHistorySection"
+                        class="w-full h-full flex flex-col max-w-6xl mx-auto hidden flex-1">
                         <!-- Filters (Compact Panel v2) -->
                         <div
                             class="bg-white rounded-2xl border border-gray-200 mb-6 shadow-sm overflow-hidden shrink-0 mt-4 mx-4">
@@ -1506,7 +1509,7 @@
 
 
                     <!-- 3. 承認待ち (Approval) -->
-                    <section id="incidentApprovalSection" class="hidden h-full flex flex-col w-full">
+                    <section id="incidentApprovalSection" class="hidden h-full flex flex-col w-full flex-1">
                         <div class="flex flex-col lg:flex-row gap-6 h-full min-h-0">
                             <div
                                 class="w-full bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
