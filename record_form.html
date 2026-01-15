@@ -3006,21 +3006,21 @@
             if (viewName === 'output') initPdfDateInput();
 
             // [Fix] Scroll Control for Incident View
-            const mainWrapper = document.getElementById('main-scroll-wrapper');
+            const wrapper = document.getElementById('main-scroll-wrapper');
             const app = document.getElementById('app');
 
             if (viewName === 'incident') {
                 // Lock main scroll so inner sections can scroll
-                if (mainWrapper) {
-                    mainWrapper.classList.add('overflow-hidden', 'h-full', 'flex', 'flex-col');
-                    mainWrapper.style.overflowY = 'hidden';
+                if (wrapper) {
+                    wrapper.classList.add('overflow-hidden', 'h-full', 'flex', 'flex-col');
+                    wrapper.style.overflowY = 'hidden';
                 }
                 if (app) app.classList.add('h-full', 'flex', 'flex-col');
             } else {
                 // Unlock main scroll for other views
-                if (mainWrapper) {
-                    mainWrapper.classList.remove('overflow-hidden', 'h-full', 'flex', 'flex-col');
-                    mainWrapper.style.overflowY = '';
+                if (wrapper) {
+                    wrapper.classList.remove('overflow-hidden', 'h-full', 'flex', 'flex-col');
+                    wrapper.style.overflowY = '';
                 }
                 if (app) app.classList.remove('h-full', 'flex', 'flex-col');
             }
