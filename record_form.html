@@ -1244,7 +1244,7 @@
         </div>
 
         <!-- Main Content Wrapper (Scrollable) -->
-        <div id="main-scroll-wrapper">
+        <div id="main-scroll-wrapper" class="flex-1 flex flex-col w-full min-h-0 overflow-y-auto">
             <div id="app" class="max-w-7xl mx-auto p-4 sm:p-6 fab-safe-area">
                 <div id="loading-initial" class="hidden flex flex-col items-center justify-center h-64">
                     <div class="spinner text-indigo-600 w-8 h-8"></div>
@@ -3013,17 +3013,17 @@
             if (viewName === 'incident') {
                 // Lock main scroll so inner sections can scroll
                 if (wrapper) {
-                    wrapper.classList.add('overflow-hidden', 'h-full', 'w-full', 'flex', 'flex-col');
-                    wrapper.style.overflowY = 'hidden';
+                    wrapper.classList.remove('overflow-y-auto');
+                    wrapper.classList.add('overflow-hidden');
                 }
                 if (app) app.classList.add('h-full', 'w-full', 'flex', 'flex-col');
             } else {
                 // Unlock main scroll for other views
                 if (wrapper) {
-                    wrapper.classList.remove('overflow-hidden', 'h-full', 'w-full', 'flex', 'flex-col');
-                    wrapper.style.overflowY = '';
+                    wrapper.classList.remove('overflow-hidden');
+                    wrapper.classList.add('overflow-y-auto');
                 }
-                if (app) app.classList.remove('h-full', 'flex', 'flex-col');
+                if (app) app.classList.remove('h-full', 'w-full', 'flex', 'flex-col');
             }
 
             // スクロール位置をリセット
