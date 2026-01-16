@@ -1491,7 +1491,7 @@
                                 </div>
 
                                 <!-- List Area Wrapper -->
-                                <div class="flex-1 overflow-y-auto custom-scrollbar px-4 pb-28 min-h-0">
+                                <div class="flex-1 overflow-y-auto custom-scrollbar px-4 pb-24 min-h-0">
                                     <!-- Card-based History View -->
                                     <div id="incidentHistoryCards" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <!-- Dynamic Cards -->
@@ -3016,10 +3016,10 @@
 
             if (viewName === 'incident') {
                 // Lock main scroll so inner sections can scroll
-                // [Fix] Remove overflow-hidden to allow height propagation
+                // [Fix] Restore overflow-hidden now that min-h-0 handles height propagation
                 if (wrapper) {
-                    wrapper.classList.remove('overflow-hidden');
-                    wrapper.classList.add('overflow-y-auto');
+                    wrapper.classList.remove('overflow-y-auto');
+                    wrapper.classList.add('overflow-hidden');
                 }
                 if (app) {
                     app.classList.add('h-full', 'flex-1', 'w-full', 'flex', 'flex-col');
