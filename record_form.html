@@ -184,23 +184,22 @@
             flex-direction: column;
         }
 
-        /* Incident Layout Fixes (Force Flex) */
-        #incident-container,
-        #incident-scroll-area,
-        #incidentHistorySection {
-            display: flex !important;
-            flex-direction: column !important;
-            flex: 1 1 auto !important;
-            min-height: 0 !important;
-            height: 100% !important;
-            /* Ensure full height adoption */
+        /* Safe Flex Layout Fix (Respect hidden) */
+        #incident-container:not(.hidden),
+        #incident-scroll-area:not(.hidden),
+        #incidentHistorySection:not(.hidden) {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
+            height: 100%;
         }
 
-        #incidentHistorySection>div:first-child {
-            display: flex !important;
-            flex-direction: column !important;
-            flex: 1 1 auto !important;
-            min-height: 0 !important;
+        #incidentHistorySection:not(.hidden)>div:first-child {
+            display: flex;
+            flex-direction: column;
+            flex: 1 1 auto;
+            min-height: 0;
         }
 
         /* Incident Card Styles */
