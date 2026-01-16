@@ -184,6 +184,25 @@
             flex-direction: column;
         }
 
+        /* Incident Layout Fixes (Force Flex) */
+        #incident-container,
+        #incident-scroll-area,
+        #incidentHistorySection {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            height: 100% !important;
+            /* Ensure full height adoption */
+        }
+
+        #incidentHistorySection>div:first-child {
+            display: flex !important;
+            flex-direction: column !important;
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+        }
+
         /* Incident Card Styles */
         .incident-card {
             background: white;
