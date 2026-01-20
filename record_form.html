@@ -195,6 +195,16 @@
             height: 100%;
         }
 
+        /* [Research Applied] Ensure #app becomes a flex container when incident view is active */
+        #app:has(#incident-container:not(.hidden)) {
+            display: flex !important;
+            flex-direction: column !important;
+            height: 100% !important;
+            width: 100% !important;
+            padding: 0 !important;
+            max-width: none !important;
+        }
+
         #incidentHistorySection:not(.hidden)>div:first-child {
             display: flex;
             flex-direction: column;
@@ -1509,7 +1519,8 @@
                                 </div>
 
                                 <!-- List Area Wrapper -->
-                                <div class="flex-1 overflow-y-auto custom-scrollbar px-4 pb-24 min-h-0">
+                                <div class="flex-1 overflow-y-auto custom-scrollbar px-4 min-h-0"
+                                    style="padding-bottom: calc(80px + env(safe-area-inset-bottom));">
                                     <!-- Card-based History View -->
                                     <div id="incidentHistoryCards" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <!-- Dynamic Cards -->
