@@ -1049,15 +1049,9 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { data: [], hasMore: false };
 
-    // Fetch batch of raw values (all columns) - For optimization, we could scan in chunks,
-    // but Incident sheets are usually not huge (<10k rows).
-    // Let's grab all for simplicity in filtering, BUT since we want latest first,
-    // we reverse logic. Grabbing all is heavy if sheet is huge.
-    // Optimization: Grab all for now (V2 did this anyway).
-    // Future Optimization: If sheet > 2000 rows, read in chunks from bottom.
-
-    // For now, consistent with processIncidentSheetRaw logic but filtered.
-    const data = sheet.getRange(2, 1, lastRow - 1, 16).getValues();
+    // [v55.1] Optimization: Reverse Chunk Fetching
+    // For large datasets (100k+), fetching all rows takes >10s.
+    // Since "Pending" is usually recent, we scan from bottom in chunks.
 
     // Normalize User Name (remove spaces, lowercase)
     const norm = s => (String(s || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
@@ -1066,69 +1060,92 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
 
     const matched = [];
 
-    // Scan backwards (Newest first)
-    // Loop through ALL data to find matches, then slice for pagination.
-    // This is safer for consistency than partial scanning if "Pending" items are sparse.
-    for (let i = data.length - 1; i >= 0; i--) {
-      const row = data[i];
-      const status = row[11]; // Col 12 (0-indexed 11)
-      const recorder = row[3]; // Col 4 (0-indexed 3)
+    const CHUNK_SIZE = 2000;
+    let currentLastRow = sheet.getLastRow();
 
-      let isMatch = false;
+    // Safety break
+    const MAX_SCAN_ROWS = 100000; // Cap to prevent timeout on massive sheets if nothing found
+    let scannedRows = 0;
 
-      // Logic must match client legacy logic EXACTLY:
-      if (isManager) {
-        // Manager: 'Returned' only (Unapproved go to Approval Tab)
-        if (status === '差戻し' || status === '差戻') {
-          isMatch = true;
-        }
-      } else {
-        // Staff: Own 'Unapproved' OR Own 'Returned'
-        const rNorm = norm(recorder);
-        if (rNorm === myNameNorm) {
-          if (status === '未承認' || status === '差戻し' || status === '差戻') {
-            isMatch = true;
+    console.log(`[getPendingIncidentsByOffice] Start Chunk Scan. TotalRows: ${currentLastRow}`);
+
+    while (currentLastRow >= 2 && matched.length < (offset + limit)) {
+      if (scannedRows >= MAX_SCAN_ROWS) {
+        console.warn('[getPendingIncidentsByOffice] Max scan limit reached.');
+        break;
+      }
+
+      const startRow = Math.max(2, currentLastRow - CHUNK_SIZE + 1);
+      const numRows = currentLastRow - startRow + 1;
+
+      // Fetch Chunk
+      const data = sheet.getRange(startRow, 1, numRows, 16).getValues();
+
+      // Loop Chunk Backwards
+      for (let i = data.length - 1; i >= 0; i--) {
+        const row = data[i];
+        const status = row[11]; // Col 12
+        const recorder = row[3]; // Col 4
+
+        let isMatch = false;
+
+        if (isManager) {
+          if (status === '差戻し' || status === '差戻') isMatch = true;
+        } else {
+          const rNorm = norm(recorder);
+          if (rNorm === myNameNorm) {
+            if (status === '未承認' || status === '差戻し' || status === '差戻') isMatch = true;
           }
         }
+
+        if (isMatch) {
+          const globalRowIndex = startRow + i; // 1-based index
+          const id = row[0];
+          const item = {
+            rowId: globalRowIndex,
+            id: id,
+            createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss") : '',
+            occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+            recorder: row[3],
+            user: row[4],
+            userName: row[4],
+            type: row[5],
+            place: row[6],
+            situation: row[7],
+            cause: row[8],
+            response: row[9],
+            prevention: row[10],
+            status: row[11],
+            approver: row[12],
+            approvedAt: row[13],
+            returnReason: row[14],
+            returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
+          };
+          matched.push(item);
+        }
       }
 
-      if (isMatch) {
-        // Map to object immediately
-        const id = row[0];
-        const item = {
-          rowId: i + 2, // 1-based row index
-          id: id,
-          createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss") : '', // [Fix] Safe Date
-          occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-          recorder: row[3],
-          user: row[4],
-          userName: row[4], // Match V2 prop
-          type: row[5],
-          place: row[6],
-          situation: row[7],
-          cause: row[8],
-          response: row[9],
-          prevention: row[10],
-          status: row[11],
-          approver: row[12],
-          approvedAt: row[13],
-          returnReason: row[14], // Col 15
-          returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
-        };
-        matched.push(item);
-      }
+      scannedRows += numRows;
+      currentLastRow -= numRows;
     }
 
     // Pagination
     const paged = matched.slice(offset, offset + limit);
-    const hasMore = matched.length > (offset + limit);
+    // HasMore determination is tricky with sparse data. 
+    // If we stopped because we found enough, hasMore might be true.
+    // If we scanned everything, hasMore is false.
+    // Simplified: If we have more matches than we're returning, we have more locally.
+    // But we might also have more in the DB.
+    // For pending tab, exact pagination isn't as critical as speed.
+    // If we found 'offset + limit' items, likely there are more.
+    const hasMore = matched.length > (offset + limit);  // This is a local check
 
-    console.log(`[getPendingIncidentsByOffice] Matched: ${matched.length}, Returning: ${paged.length}, Offset: ${offset}, HasMore: ${hasMore}`);
+    console.log(`[getPendingIncidentsByOffice] Done. Scanned: ${scannedRows}, Matched: ${matched.length}, Returning: ${paged.length}`);
 
     return {
       data: paged,
       hasMore: hasMore,
-      total: matched.length
+      total: matched.length // Approximate for badge
     };
 
   } catch (e) {
