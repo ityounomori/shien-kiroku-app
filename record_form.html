@@ -4986,6 +4986,14 @@
             google.script.run.withSuccessHandler(response => {
                 console.log('[Debug] Pending Fetch Response:', response);
 
+                // [Fix] Defensive check for null response
+                if (!response) {
+                    console.error('[Error] Server returned null response');
+                    APP_STATE.pending.loading = false;
+                    if (!isAppend && container) container.innerHTML = '<div class="text-red-500 text-center py-10">データ取得エラー (Response is null)</div>';
+                    return;
+                }
+
                 const data = response.data || [];
                 const hasMore = response.hasMore || false;
 

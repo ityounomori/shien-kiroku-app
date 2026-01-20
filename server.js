@@ -1026,6 +1026,8 @@ function getIncidentsByOfficeV2(officeName) {
  */
 function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami) {
   try {
+    console.log(`[getPendingIncidentsByOffice] Start. Office: ${officeName}, Limit: ${limit}, Offset: ${offset}, User: ${whoami ? whoami.name : 'Unknown'}`);
+
     if (!officeName) throw new Error('Office not specified');
 
     // Validate limit/offset
@@ -1034,8 +1036,15 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
 
     const files = getFilesByOffice(officeName);
     const ss = SpreadsheetApp.openById(files.incidentFileId);
-    const sheet = ss.getSheetByName(SHEET_NAMES.INCIDENT_SHEET);
-    if (!sheet) return { data: [], hasMore: false };
+
+    // [Fix] Safe Sheet Name Resolution
+    const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
+    const sheet = ss.getSheetByName(sheetName);
+
+    if (!sheet) {
+      console.warn(`[getPendingIncidentsByOffice] Sheet "${sheetName}" not found.`);
+      return { data: [], hasMore: false };
+    }
 
     const lastRow = sheet.getLastRow();
     if (lastRow < 2) return { data: [], hasMore: false };
@@ -1089,7 +1098,7 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         const item = {
           rowId: i + 2, // 1-based row index
           id: id,
-          createdAt: row[1],
+          createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss") : '', // [Fix] Safe Date
           occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
           recorder: row[3],
           user: row[4],
