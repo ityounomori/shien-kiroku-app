@@ -4970,7 +4970,18 @@
             }
 
             if (isAppend) {
-                if (APP_STATE.pending.loading) return;
+                // [Fix] Failsafe: If loading is true but user clicks again after 5s, assume stuck and reset
+                if (APP_STATE.pending.loading) {
+                    const now = Date.now();
+                    if (APP_STATE.pending.lastLoadTime && (now - APP_STATE.pending.lastLoadTime > 5000)) {
+                        console.warn('Forcing loading reset due to timeout');
+                        APP_STATE.pending.loading = false;
+                    } else {
+                        return;
+                    }
+                }
+                APP_STATE.pending.lastLoadTime = Date.now();
+
                 // Show small spinner
                 const btn = document.getElementById('btn-pending-load-more');
                 if (btn) {
