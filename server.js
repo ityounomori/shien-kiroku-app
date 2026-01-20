@@ -1084,7 +1084,7 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
       // Loop Chunk Backwards
       for (let i = data.length - 1; i >= 0; i--) {
         const row = data[i];
-        const status = row[11]; // Col 12
+        const status = (row[11] || '未承認').toString().trim(); // [Fix] Normalize Status (Default '未承認')
         const recorder = row[3]; // Col 4
 
         let isMatch = false;
