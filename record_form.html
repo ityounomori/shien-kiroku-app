@@ -5029,9 +5029,21 @@
                         return;
                     }
 
+                    console.log('[Debug] Appending ' + response.data.length + ' items to list.');
                     response.data.forEach(function (item) {
-                        listEl.appendChild(createIncidentPendingCard(item));
+                        const card = createIncidentPendingCard(item);
+                        listEl.appendChild(card);
                     });
+
+                    // [Debug] Verify rendering
+                    console.log('[Debug] List children count after append: ' + listEl.children.length);
+
+                    // [Fix] Force visibility check
+                    const section = document.getElementById('incidentPendingSection');
+                    if (section && section.classList.contains('hidden')) {
+                        console.warn('[Fix] Pending section was hidden, forcing show.');
+                        section.classList.remove('hidden');
+                    }
 
                     APP_STATE.pending.offset += response.data.length;
                     APP_STATE.pending.hasMore = response.hasMore;
