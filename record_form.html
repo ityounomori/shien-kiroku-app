@@ -5024,7 +5024,7 @@
                     }
 
                     response.data.forEach(function (item) {
-                        listEl.insertAdjacentHTML('beforeend', createIncidentPendingCard(item));
+                        listEl.appendChild(createIncidentPendingCard(item));
                     });
 
                     APP_STATE.pending.offset += response.data.length;
