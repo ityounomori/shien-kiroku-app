@@ -4955,6 +4955,12 @@
             }
         }
 
+        // [Fix] Stub for missing function to prevent crash
+        function renderManagerCards() {
+            // Placeholder: original logic lost in revert, added to unblock flow
+            console.log('[Debug] renderManagerCards stub called');
+        }
+
         function loadIncidentPendingList(isLoadMore) {
             // Defensive init
             if (typeof APP_STATE === 'undefined') window.APP_STATE = {};
