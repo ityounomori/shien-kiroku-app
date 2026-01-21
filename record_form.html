@@ -5059,7 +5059,7 @@
                         document.getElementById('incident-pending-load-more').innerHTML = '<div class="text-center text-red-500">再試行してください</div>';
                     }
                 })
-                .getPendingIncidentsByOffice(config.officeName, limit, offset, whoami);
+                .getPendingIncidentsByOffice(APP_STATE.whoami.officeSelected, limit, offset, APP_STATE.whoami);
         }
 
         function createIncidentPendingCard(item) {
