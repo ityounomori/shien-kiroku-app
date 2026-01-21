@@ -4997,6 +4997,11 @@
             google.script.run.withSuccessHandler(response => {
                 console.log('[Debug] Pending Fetch Response:', response);
 
+                // [Debug] Show server-side logs in client console
+                if (response.debugLogs && Array.isArray(response.debugLogs)) {
+                    response.debugLogs.forEach(l => console.log('[ServerLog]', l));
+                }
+
                 // [Fix] Defensive check for null response
                 if (!response) {
                     console.error('[Error] Server returned null response');
