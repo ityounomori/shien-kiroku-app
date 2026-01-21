@@ -2107,7 +2107,7 @@
         };
         console.log('Script Started: Initializing APP_STATE...');
 
-        const APP_STATE = {
+        const APP_STATE = { pending: { offset: 0, limit: 50, hasMore: true, loading: false },
             office: null,
             whoami: null,
             pinInput: '',
@@ -4948,12 +4948,24 @@
         }
 
 function loadIncidentPendingList(isLoadMore) {
-    // Default arg handling manually for safety in older browsers/ES
+    // Defensive init
+    if (typeof APP_STATE === 'undefined') window.APP_STATE = {};
+    if (!APP_STATE.pending) APP_STATE.pending = { offset: 0, limit: 50, hasMore: true, loading: false };
+
+    // Default arg handling
     if (typeof isLoadMore === 'undefined') isLoadMore = false;
 
     if (!isLoadMore) {
         if (APP_STATE.pending.loading) return;
-        document.getElementById('incident-pending-list').innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>';
+        // [Fix] Use common loader spinner
+        const listEl = document.getElementById('incident-pending-list');
+        if (listEl) {
+            // Check if getLoaderHtml is available, otherwise fallback
+            const spinner = (typeof getLoaderHtml === 'function')
+                ? '<div class="flex justify-center items-center py-20 w-full">' + getLoaderHtml() + '</div>'
+                : '<div class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>';
+            listEl.innerHTML = spinner;
+        }
         document.getElementById('incident-pending-load-more').innerHTML = ''; // Clear button
         APP_STATE.pending = { offset: 0, limit: 50, hasMore: true, loading: false };
     }
@@ -5019,10 +5031,9 @@ function loadIncidentPendingList(isLoadMore) {
                     '<i class="fas fa-chevron-down text-sm"></i>' +
                     '</button></div>';
 
-                // Failsafe: Reset loading state if stuck (5s timeout)
+                // Failsafe
                 setTimeout(function () {
                     if (APP_STATE.pending.loading) {
-                        console.warn('LoadMore timeout reset');
                         APP_STATE.pending.loading = false;
                     }
                 }, 5000);
