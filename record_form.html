@@ -1,4 +1,4 @@
-﻿<!-- record_form.html - v33 (Logic Restored & Final Bug Fixes) -->
+<!-- record_form.html - v33 (Logic Restored & Final Bug Fixes) -->
 <!DOCTYPE html>
 <html class="h-full">
 
@@ -4947,122 +4947,101 @@
             }
         }
 
-        function loadIncidentPendingList(isAppend = false) {
-            const w = getWhoami();
-            if (!w) return;
+function loadIncidentPendingList(isLoadMore) {
+    // Default arg handling manually for safety in older browsers/ES
+    if (typeof isLoadMore === 'undefined') isLoadMore = false;
 
-            const container = document.getElementById('incidentPendingCards');
-            if (container) {
-                if (!isAppend) container.innerHTML = `<div class="flex justify-center items-center py-10 w-full">${getLoaderHtml()}</div>`;
+    if (!isLoadMore) {
+        if (APP_STATE.pending.loading) return;
+        document.getElementById('incident-pending-list').innerHTML = '<div class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i>読み込み中...</div>';
+        document.getElementById('incident-pending-load-more').innerHTML = ''; // Clear button
+        APP_STATE.pending = { offset: 0, limit: 50, hasMore: true, loading: false };
+    }
+
+    if (APP_STATE.pending.loading) return;
+    APP_STATE.pending.loading = true;
+
+    // Show loading indicator in button if "Load More"
+    const moreDiv = document.getElementById('incident-pending-load-more');
+    if (isLoadMore && moreDiv) {
+        moreDiv.innerHTML = '<div class="py-4 text-center"><i class="fas fa-spinner fa-spin text-blue-500"></i></div>';
+    }
+
+    const offset = APP_STATE.pending.offset;
+    const limit = APP_STATE.pending.limit;
+
+    google.script.run
+        .withSuccessHandler(function (response) {
+            APP_STATE.pending.loading = false;
+
+            // [Debug] Dump Server Logs
+            if (response && response.debugLogs) {
+                console.log('[ServerLog] --- Start ---');
+                if (Array.isArray(response.debugLogs)) {
+                    response.debugLogs.forEach(function (l) { console.log('[ServerLog]', l); });
+                }
+                console.log('[ServerLog] --- End ---');
+            }
+            if (response && response.debugRowDump) {
+                console.log('[ServerRowDump] First 20 Scanned Rows:');
+                if (console.table) console.table(response.debugRowDump);
+                else console.log(response.debugRowDump);
             }
 
-            console.log('[Debug] loadIncidentPendingList started for:', w.name, 'Office:', w.officeSelected, 'Append:', isAppend);
-
-            // Init State
-            if (!APP_STATE.pending || !isAppend) {
-                APP_STATE.pending = {
-                    limit: 50,
-                    offset: 0,
-                    items: [],
-                    hasMore: true,
-                    loading: false
-                };
+            if (!response || !response.data) {
+                console.error('Invalid response:', response);
+                if (!isLoadMore) document.getElementById('incident-pending-list').innerHTML = '<div class="text-center py-8 text-red-500">エラー: データ取得失敗</div>';
+                return;
             }
 
-            if (isAppend) {
-                // [Fix] Failsafe: If loading is true but user clicks again after 5s, assume stuck and reset
-                if (APP_STATE.pending.loading) {
-                    const now = Date.now();
-                    if (APP_STATE.pending.lastLoadTime && (now - APP_STATE.pending.lastLoadTime > 5000)) {
-                        console.warn('Forcing loading reset due to timeout');
+            const listEl = document.getElementById('incident-pending-list');
+            if (!isLoadMore) listEl.innerHTML = '';
+
+            if (response.data.length === 0 && !isLoadMore) {
+                listEl.innerHTML = '<div class="text-center py-8 text-gray-400">未承認の報告はありません</div>';
+                moreDiv.innerHTML = '';
+                return;
+            }
+
+            response.data.forEach(function (item) {
+                listEl.insertAdjacentHTML('beforeend', createIncidentPendingCard(item));
+            });
+
+            APP_STATE.pending.offset += response.data.length;
+            APP_STATE.pending.hasMore = response.hasMore;
+
+            // Render "Load More" button if needed
+            if (APP_STATE.pending.hasMore) {
+                // [Fix] Add relative and z-50 to ensure clickability
+                moreDiv.innerHTML = '<div class="flex justify-center py-4 relative z-50">' +
+                    '<button id="btn-pending-load-more" onclick="loadIncidentPendingList(true)" class="relative z-50 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">' +
+                    '<span>もっと読み込む</span>' +
+                    '<i class="fas fa-chevron-down text-sm"></i>' +
+                    '</button></div>';
+
+                // Failsafe: Reset loading state if stuck (5s timeout)
+                setTimeout(function () {
+                    if (APP_STATE.pending.loading) {
+                        console.warn('LoadMore timeout reset');
                         APP_STATE.pending.loading = false;
-                    } else {
-                        return;
                     }
-                }
-                APP_STATE.pending.lastLoadTime = Date.now();
+                }, 5000);
 
-                // Show small spinner
-                const btn = document.getElementById('btn-pending-load-more');
-                if (btn) {
-                    btn.innerHTML = `<span class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full"></span>`;
-                    btn.disabled = true;
-                }
+            } else {
+                moreDiv.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">すべて表示しました</div>';
             }
 
-            APP_STATE.pending.loading = true;
-            const p = APP_STATE.pending;
-
-            // [v55] Use Optimized Server Function
-            google.script.run.withSuccessHandler(response => {
-                console.log('[Debug] Pending Fetch Response:', response);
-
-                // [Debug] Show server-side logs in client console
-                if (response.debugLogs && Array.isArray(response.debugLogs)) {
-                    response.debugLogs.forEach(l => console.log('[ServerLog]', l));
-                }
-
-                // [Fix] Defensive check for null response
-                if (!response) {
-                    console.error('[Error] Server returned null response');
-                    APP_STATE.pending.loading = false;
-                    if (!isAppend && container) container.innerHTML = '<div class="text-red-500 text-center py-10">データ取得エラー (Response is null)</div>';
-                    return;
-                }
-
-                const data = response.data || [];
-                const hasMore = response.hasMore || false;
-
-                APP_STATE.pending.items = APP_STATE.pending.items.concat(data);
-                APP_STATE.pending.offset += data.length;
-                APP_STATE.pending.hasMore = hasMore;
-                APP_STATE.pending.loading = false;
-
-                // Render
-                if (!isAppend) {
-                    container.innerHTML = '';
-                    if (data.length === 0) {
-                        container.innerHTML = '<div class="text-center py-20 text-gray-400 bg-gray-50 rounded-xl border-2 border-dashed border-gray-100">対応待ちの報告書はありません</div>';
-                        return;
-                    }
-                } else {
-                    // Remove "Load More" container
-                    const moreContainer = document.getElementById('btn-pending-load-more-container');
-                    if (moreContainer) moreContainer.remove();
-                }
-
-                data.forEach(item => {
-                    const card = createIncidentPendingCard(item);
-                    container.appendChild(card);
-                });
-
-                // badge update
-                const badge = document.getElementById('inc-pending-count');
-                // Pending count is slightly tricky with pagination, but we can show loaded count or server total if available.
-                // For now, show loaded count + '+' if more.
-                if (badge) {
-                    const total = APP_STATE.pending.items.length;
-                    badge.textContent = `${total}${hasMore ? '+' : ''}`;
-                }
-
-                // Check "Load More"
-                if (hasMore) {
-                    const moreDiv = document.createElement('div');
-                    moreDiv.id = 'btn-pending-load-more-container';
-                    moreDiv.className = 'col-span-full flex justify-center py-6';
-                    moreDiv.innerHTML = `<button id="btn-pending-load-more" onclick="loadIncidentPendingList(true)" class="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
-                                            <span>もっと見る</span>
-                                            <i class="fas fa-chevron-down text-xs"></i>
-                                          </button>`;
-                    container.appendChild(moreDiv);
-                }
-
-            }).withFailureHandler(err => {
-                console.error(err);
-                APP_STATE.pending.loading = false;
-                if (!isAppend && container) container.innerHTML = '<div class="text-red-500 text-center py-10">読み込みエラー</div>';
-            }).getPendingIncidentsByOffice(w.officeSelected, p.limit, p.offset, w);
-        }
+        })
+        .withFailureHandler(function (error) {
+            APP_STATE.pending.loading = false;
+            console.error('Pending load error:', error);
+            alert('読み込みエラー: ' + error.message);
+            if (isLoadMore) {
+                document.getElementById('incident-pending-load-more').innerHTML = '<div class="text-center text-red-500">再試行してください</div>';
+            }
+        })
+        .getPendingIncidentsByOffice(config.officeName, limit, offset, whoami);
+}
 
         function createIncidentPendingCard(item) {
             const card = document.createElement('div');
