@@ -1066,7 +1066,7 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         let currentLastRow = sheet.getLastRow();
 
         // Safety break
-        const MAX_SCAN_ROWS = 100000;
+        const MAX_SCAN_ROWS = 300000;
         let scannedRows = 0;
 
         // [Debug] Dump scan results for first few rows
