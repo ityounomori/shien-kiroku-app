@@ -5007,53 +5007,55 @@
                         else console.log(response.debugRowDump);
                     }
 
-                    const items = (response && response.data) ? response.data : [];
-                    const hasMore = (response && response.hasMore) || false;
+                    try {
+                        const items = (response && response.data) ? response.data : [];
+                        const hasMore = (response && response.hasMore) || false;
 
-                    if (!isLoadMore) {
-                        listEl.innerHTML = '';
-                        // Reset grid classes based on content
-                        if (items.length === 0) {
-                            listEl.classList.remove('grid', 'grid-cols-1', 'md:grid-cols-2');
-                            listEl.className = 'w-full text-center py-10 text-gray-400';
-                            listEl.textContent = '未承認・差戻しの記録はありません';
-
-                            // Clear load more button if no items
-                            document.getElementById('incident-pending-load-more').innerHTML = '';
-                            loadIncidentPendingList.loading = false; // Reset loading state
-                            return;
-                        } else {
-                            // Apply Grid Layout
-                            listEl.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 pb-4';
+                        if (!isLoadMore) {
+                            listEl.innerHTML = '';
+                            if (items.length === 0) {
+                                listEl.classList.remove('grid', 'grid-cols-1', 'md:grid-cols-2');
+                                listEl.className = 'w-full text-center py-10 text-gray-400';
+                                listEl.textContent = '未承認・差戻しの記録はありません';
+                                document.getElementById('incident-pending-load-more').innerHTML = '';
+                                loadIncidentPendingList.loading = false;
+                                return;
+                            } else {
+                                listEl.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 pb-4';
+                            }
                         }
-                    }
 
-                    items.forEach(item => {
-                        const card = createIncidentPendingCard(item);
-                        listEl.appendChild(card);
-                    });
+                        items.forEach(item => {
+                            if (!item) return; // Defensive
+                            const card = createIncidentPendingCard(item);
+                            listEl.appendChild(card);
+                        });
 
-                    // Update State for Pagination
-                    if (APP_STATE.pending) {
-                        APP_STATE.pending.offset += items.length;
-                        APP_STATE.pending.hasMore = hasMore;
-                        APP_STATE.pending.loading = false;
-                    }
-
-                    // Load More Button
-                    const loadMoreContainer = document.getElementById('incident-pending-load-more');
-                    if (loadMoreContainer) {
-                        loadMoreContainer.innerHTML = '';
-                        if (hasMore) {
-                            const btn = document.createElement('button');
-                            btn.className = 'mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition';
-                            btn.innerHTML = '<span>もっと見る</span><i class="fas fa-chevron-down text-xs"></i>';
-                            btn.onclick = () => loadIncidentPendingList(true);
-                            loadMoreContainer.appendChild(btn);
-                            loadMoreContainer.classList.remove('hidden');
-                        } else {
-                            loadMoreContainer.classList.add('hidden');
+                        // Update State
+                        if (APP_STATE.pending) {
+                            APP_STATE.pending.offset += items.length;
+                            APP_STATE.pending.hasMore = hasMore;
+                            APP_STATE.pending.loading = false;
                         }
+
+                        // Load More Button
+                        const loadMoreContainer = document.getElementById('incident-pending-load-more');
+                        if (loadMoreContainer) {
+                            loadMoreContainer.innerHTML = '';
+                            if (hasMore) {
+                                const btn = document.createElement('button');
+                                btn.className = 'mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition';
+                                btn.innerHTML = '<span>もっと見る</span><i class="fas fa-chevron-down text-xs"></i>';
+                                btn.onclick = () => loadIncidentPendingList(true);
+                                loadMoreContainer.appendChild(btn);
+                                loadMoreContainer.classList.remove('hidden');
+                            } else {
+                                loadMoreContainer.classList.add('hidden');
+                            }
+                        }
+                    } catch (e) {
+                        console.error('[Critical Error] loadIncidentPendingList success handler:', e);
+                        alert('表示エラーが発生しました: ' + (e.message || e));
                     }
                 })
                 .withFailureHandler(err => {
