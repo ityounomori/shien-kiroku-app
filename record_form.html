@@ -1294,7 +1294,7 @@
                                 <button onclick="loadMore()" id="btn-load-more"
                                     class="px-8 py-3 bg-white border-2 border-indigo-100 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition shadow-sm flex items-center justify-center gap-2 mx-auto disabled:opacity-50">
                                     <div id="load-more-loader" class="hidden"></div>
-                                    <span>さらに読み込む</span>
+                                    <span>もっと見る</span>
                                 </button>
                             </div>
                         </div>
@@ -2164,6 +2164,15 @@
                     btn.innerHTML = btn.dataset.originalHtml;
                 }
             }
+        }
+
+        // [New] Button HTML Generator for Consistency
+        function getLoadMoreButtonHtml(id, text = 'もっと見る', onClick = '') {
+            return `<button id="${id}" onclick="${onClick}" 
+                class="px-8 py-3 bg-white border-2 border-indigo-100 text-indigo-600 rounded-xl font-bold hover:bg-indigo-50 transition shadow-sm flex items-center justify-center gap-2 mx-auto disabled:opacity-50 cursor-pointer">
+                <div class="hidden"></div>
+                <span>${text}</span>
+            </button>`;
         }
 
         /**
@@ -3927,6 +3936,13 @@
                 displayRecords = displayRecords.filter(r => r['項目'] === filterItem);
             }
 
+            // [Fix] Record List Spinner Bug: Explicitly reset loading state
+            if (APP_STATE.isLoadingMore) {
+                APP_STATE.isLoadingMore = false;
+                const btn = document.getElementById('btn-load-more');
+                if (btn) setButtonLoading(btn, false);
+            }
+
             const container = document.getElementById('record-list-container');
             container.innerHTML = '';
             container.classList.remove('hidden'); // Ensure container is visible
@@ -4986,10 +5002,9 @@
             APP_STATE.pending.loading = true;
 
             // Show loading indicator in button if "Load More"
-            const moreDiv = document.getElementById('incident-pending-load-more');
-            if (isLoadMore && moreDiv) {
-                // Unified Spinner: Tailwind C-ring (Matching History)
-                moreDiv.innerHTML = '<div class="py-6 text-center"><span class="animate-spin inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full" role="status" aria-label="loading"></span></div>';
+            if (isLoadMore) {
+                const btn = document.getElementById('incident-pending-load-more-btn');
+                if (btn) setButtonLoading(btn, true);
             }
 
             const offset = APP_STATE.pending.offset;
@@ -5053,15 +5068,13 @@
                             loadMoreContainer.className = 'mt-8 pb-8 text-center relative z-20';
 
                             if (hasMore) {
-                                const btn = document.createElement('button');
-                                // [Fix] Increased z-index, relative positioning, and margin to ensure clickability
-                                btn.className = 'relative z-20 mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition cursor-pointer';
-                                btn.innerHTML = '<span>もっと見る</span><i class="fas fa-chevron-down text-xs"></i>';
-                                btn.onclick = () => {
-                                    console.log('[Debug] Load More Clicked');
-                                    loadIncidentPendingList(true);
-                                };
-                                loadMoreContainer.appendChild(btn);
+                                // [Fix] Use unified button generator & simplified onclick
+                                const btnHtml = getLoadMoreButtonHtml(
+                                    'incident-pending-load-more-btn',
+                                    'もっと見る',
+                                    'loadIncidentPendingList(true)'
+                                );
+                                loadMoreContainer.innerHTML = btnHtml;
                                 loadMoreContainer.classList.remove('hidden');
                             } else {
                                 loadMoreContainer.classList.add('hidden');
@@ -6113,12 +6126,10 @@
                 // Is Append mode
                 if (APP_STATE.history.loading) return; // Prevent double fetch
 
-                // Show small spinner at bottom
+                // Show spinner in button
                 const btn = document.getElementById('btn-hist-load-more');
                 if (btn) {
-                    // Unified Spinner: Tailwind C-ring with currentColor (Text removed)
-                    btn.innerHTML = `<span class="animate-spin inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full" role="status" aria-label="loading"></span>`;
-                    btn.disabled = true;
+                    setButtonLoading(btn, true);
                 }
             }
 
@@ -6176,11 +6187,13 @@
                     const moreDiv = document.createElement('div');
                     moreDiv.id = 'btn-hist-load-more-container';
                     moreDiv.className = 'col-span-full flex justify-center py-6';
-                    // Note: Argument needs to be true for Append
-                    moreDiv.innerHTML = `<button id="btn-hist-load-more" onclick="loadIncidentHistory(true)" class="bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">
-                                            <span>もっと見る</span>
-                                            <i class="fas fa-chevron-down text-xs"></i>
-                                          </button>`;
+
+                    // [Fix] Use unified button generator
+                    moreDiv.innerHTML = getLoadMoreButtonHtml(
+                        'btn-hist-load-more',
+                        'もっと見る',
+                        'loadIncidentHistory(true)'
+                    );
                     container.appendChild(moreDiv);
                 }
 
