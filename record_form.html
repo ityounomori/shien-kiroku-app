@@ -4967,10 +4967,13 @@
                 // [Fix] Use common loader spinner
                 const listEl = document.getElementById('incident-pending-list');
                 if (listEl) {
+                    // Temporarily switch to simple layout for spinner
+                    listEl.classList.remove('grid', 'grid-cols-1', 'md:grid-cols-2');
+
                     // Check if getLoaderHtml is available, otherwise fallback
                     const spinner = (typeof getLoaderHtml === 'function')
-                        ? '<div class="flex justify-center items-center py-20 w-full">' + getLoaderHtml() + '</div>'
-                        : '<div class="text-center py-8 text-gray-500"><i class="fas fa-spinner fa-spin mr-2"></i></div>';
+                        ? '<div class="flex justify-center items-center py-20 w-full col-span-full">' + getLoaderHtml() + '</div>'
+                        : '<div class="text-center py-8 text-gray-500 w-full"><i class="fas fa-spinner fa-spin mr-2"></i></div>';
                     listEl.innerHTML = spinner;
                 }
                 document.getElementById('incident-pending-load-more').innerHTML = ''; // Clear button
