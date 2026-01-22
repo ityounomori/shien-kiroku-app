@@ -1175,6 +1175,97 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
     }
 }
 
+/**
+ * [v55.4] Optimized Approval List Fetcher (Manager Only)
+ * Scans ALL rows (Cols Status) efficiently to find 'Unapproved' items.
+ * Replaces the slow getIncidentsByOfficeV2 for the Approval tab.
+ */
+function getApprovalIncidentsByOffice(officeName) {
+    try {
+        const files = getFilesByOffice(officeName);
+        const ss = SpreadsheetApp.openById(files.incidentFileId);
+
+        const targetSheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET)
+            ? SHEET_NAMES.INCIDENT_SHEET
+            : 'incidents';
+        const sheet = ss.getSheetByName(targetSheetName);
+
+        if (!sheet) return { data: [], debug: { error: 'Sheet not found' } };
+
+        const lastRow = sheet.getLastRow();
+        if (lastRow < 2) return { data: [] };
+
+        // 1. Column Scan (Status is Col 12)
+        // Fetching only the relevant column for filtering
+        const numRows = lastRow - 1;
+        const statusValues = sheet.getRange(2, 12, numRows, 1).getValues(); // Col L
+
+        const matchedIndices = [];
+
+        // 2. In-Memory Filter (Scan All)
+        for (let i = 0; i < numRows; i++) {
+            const rawStatus = (statusValues[i][0] || '未承認').toString();
+            // Simplify status check: purely "未承認"
+            if (rawStatus.trim() === '未承認') {
+                matchedIndices.push(i + 2); // 1-based row index
+            }
+        }
+
+        // 3. Fetch Full Data for Matches
+        // If matches are too many, this might be heavy, but usually "Unapproved" are few.
+        // We fetch all matches to replicate original behavior (no pagination logic requested).
+        const results = [];
+
+        if (matchedIndices.length > 0) {
+            // Optimization: If many matches are contiguous, we could group ranges, 
+            // but getRangeList handles non-contiguous well enough for < 100 items.
+            // If matches > 1000, we might want to cap it, but let's assume Managers keep this low.
+
+            const ranges = matchedIndices.map(r => `A${r}:P${r}`);
+            const rangeList = sheet.getRangeList(ranges);
+            const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
+
+            for (let i = 0; i < rangeValues.length; i++) {
+                const row = rangeValues[i];
+                const rowIndex = matchedIndices[i]; // Correct row index
+
+                if (!row[0]) continue; // Skip if no ID (just in case)
+
+                results.push({
+                    rowId: rowIndex,
+                    id: String(row[0]),
+                    createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    recorder: String(row[3]),
+                    user: String(row[4]),
+                    userName: String(row[4]),
+                    type: String(row[5]),
+                    place: String(row[6]),
+                    situation: String(row[7]),
+                    cause: String(row[8]),
+                    response: String(row[9]),
+                    prevention: String(row[10]),
+                    status: (row[11] || '未承認').toString(),
+                    approver: String(row[12]),
+                    approvedAt: row[13] ? Utilities.formatDate(new Date(row[13]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    returnReason: String(row[14]),
+                    returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
+                });
+            }
+        }
+
+        // Sort by Date (Newest First) - similar to V2 behavior
+        results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+        console.log(`[getApprovalIncidents] Office: ${officeName}, Scanned: ${numRows}, Found: ${results.length}`);
+        return { data: results };
+
+    } catch (e) {
+        console.error('getApprovalIncidentsByOffice Error:', e);
+        return { data: [], debug: { error: e.toString() } };
+    }
+}
+
 
 // 承認処理
 function approveIncidentByOffice(officeName, rowId, whoami, pin) {
