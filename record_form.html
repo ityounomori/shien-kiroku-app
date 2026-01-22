@@ -2153,7 +2153,10 @@
             if (isLoading) {
                 // 二重送信防止
                 btn.disabled = true;
-                btn.dataset.originalHtml = btn.innerHTML; // 元の表示を記憶
+                // [Fix] Only save original HTML if not already saved (prevent saving the spinner itself)
+                if (!btn.dataset.originalHtml || btn.dataset.originalHtml === getLoaderHtml()) {
+                    btn.dataset.originalHtml = btn.innerHTML;
+                }
 
                 // スピナーを表示（サイズ強制固定版）
                 btn.innerHTML = getLoaderHtml();
@@ -2162,6 +2165,12 @@
                 btn.disabled = false;
                 if (btn.dataset.originalHtml) {
                     btn.innerHTML = btn.dataset.originalHtml;
+                    // Optional: clear originalHtml? No, keep it for next time or rely on overwrite check?
+                    // Better to keep it or just overwrite if needed. 
+                    // Actually, if we keep it, we don't need to re-save.
+                    // But if content changes dynamically... 
+                    // Let's delete it to be clean.
+                    delete btn.dataset.originalHtml;
                 }
             }
         }
