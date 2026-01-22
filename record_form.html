@@ -5008,6 +5008,7 @@
                     }
 
                     try {
+                        const listEl = document.getElementById('incident-pending-list'); // Restored definition
                         const items = (response && response.data) ? response.data : [];
                         const hasMore = (response && response.hasMore) || false;
 
