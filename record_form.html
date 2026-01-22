@@ -4986,7 +4986,8 @@
             // Show loading indicator in button if "Load More"
             const moreDiv = document.getElementById('incident-pending-load-more');
             if (isLoadMore && moreDiv) {
-                moreDiv.innerHTML = '<div class="py-4 text-center"><i class="fas fa-spinner fa-spin text-blue-500"></i></div>';
+                // Unified Spinner: Tailwind C-ring (Matching History)
+                moreDiv.innerHTML = '<div class="py-6 text-center"><span class="animate-spin inline-block w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full" role="status" aria-label="loading"></span></div>';
             }
 
             const offset = APP_STATE.pending.offset;
@@ -5046,15 +5047,16 @@
                         const loadMoreContainer = document.getElementById('incident-pending-load-more');
                         if (loadMoreContainer) {
                             loadMoreContainer.innerHTML = '';
+                            // Add extra margin to container to prevent overlap
+                            loadMoreContainer.className = 'mt-8 pb-8 text-center relative z-20';
+
                             if (hasMore) {
                                 const btn = document.createElement('button');
-                                // [Fix] Add relative + z-10 to ensure clickability
-                                btn.className = 'relative z-10 mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition';
+                                // [Fix] Increased z-index, relative positioning, and margin to ensure clickability
+                                btn.className = 'relative z-20 mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition cursor-pointer';
                                 btn.innerHTML = '<span>もっと見る</span><i class="fas fa-chevron-down text-xs"></i>';
                                 btn.onclick = () => {
                                     console.log('[Debug] Load More Clicked');
-                                    // Force reset loading if stuck (though function checks it too)
-                                    // APP_STATE.pending.loading = false; 
                                     loadIncidentPendingList(true);
                                 };
                                 loadMoreContainer.appendChild(btn);
