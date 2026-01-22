@@ -5038,11 +5038,24 @@
                     // [Debug] Verify rendering
                     console.log('[Debug] List children count after append: ' + listEl.children.length);
 
+                    if (listEl.children.length > 0) {
+                        console.log('[Debug] First child HTML: ' + listEl.children[0].outerHTML.substring(0, 200) + '...');
+                    }
+
+                    const rect = listEl.getBoundingClientRect();
+                    const style = window.getComputedStyle(listEl);
+                    console.log('[Debug] List Rect: width=' + rect.width + ', height=' + rect.height + ', top=' + rect.top);
+                    console.log('[Debug] List Style: display=' + style.display + ', visibility=' + style.visibility + ', opacity=' + style.opacity);
+
                     // [Fix] Force visibility check
                     const section = document.getElementById('incidentPendingSection');
-                    if (section && section.classList.contains('hidden')) {
-                        console.warn('[Fix] Pending section was hidden, forcing show.');
-                        section.classList.remove('hidden');
+                    if (section) {
+                        const sectionStyle = window.getComputedStyle(section);
+                        console.log('[Debug] Section Style: display=' + sectionStyle.display + ', height=' + sectionStyle.height);
+                        if (section.classList.contains('hidden')) {
+                            console.warn('[Fix] Pending section was hidden, forcing show.');
+                            section.classList.remove('hidden');
+                        }
                     }
 
                     APP_STATE.pending.offset += response.data.length;
