@@ -5048,9 +5048,15 @@
                             loadMoreContainer.innerHTML = '';
                             if (hasMore) {
                                 const btn = document.createElement('button');
-                                btn.className = 'mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition';
+                                // [Fix] Add relative + z-10 to ensure clickability
+                                btn.className = 'relative z-10 mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition';
                                 btn.innerHTML = '<span>もっと見る</span><i class="fas fa-chevron-down text-xs"></i>';
-                                btn.onclick = () => loadIncidentPendingList(true);
+                                btn.onclick = () => {
+                                    console.log('[Debug] Load More Clicked');
+                                    // Force reset loading if stuck (though function checks it too)
+                                    // APP_STATE.pending.loading = false; 
+                                    loadIncidentPendingList(true);
+                                };
                                 loadMoreContainer.appendChild(btn);
                                 loadMoreContainer.classList.remove('hidden');
                             } else {
