@@ -5007,56 +5007,65 @@
                         else console.log(response.debugRowDump);
                     }
 
-                    if (!response || !response.data) {
-                        console.error('Invalid response:', response);
-                        if (!isLoadMore) document.getElementById('incident-pending-list').innerHTML = '<div class="text-center py-8 text-red-500">エラー: データ取得失敗</div>';
-                        return;
+                    const items = (response && response.data) ? response.data : [];
+                    const hasMore = (response && response.hasMore) || false;
+
+                    if (!isLoadMore) {
+                        listEl.innerHTML = '';
+                        // Reset grid classes based on content
+                        if (items.length === 0) {
+                            listEl.classList.remove('grid', 'grid-cols-1', 'md:grid-cols-2');
+                            listEl.className = 'w-full text-center py-10 text-gray-400';
+                            listEl.textContent = '未承認・差戻しの記録はありません';
+
+                            // Clear load more button if no items
+                            document.getElementById('incident-pending-load-more').innerHTML = '';
+                            loadIncidentPendingList.loading = false; // Reset loading state
+                            return;
+                        } else {
+                            // Apply Grid Layout
+                            listEl.className = 'grid grid-cols-1 md:grid-cols-2 gap-4 pb-4';
+                        }
                     }
 
-                    const listEl = document.getElementById('incident-pending-list');
-                    if (!isLoadMore) listEl.innerHTML = '';
-
-                    if (response.data.length === 0 && !isLoadMore) {
-                        listEl.innerHTML = '<div class="text-center py-8 text-gray-400">未承認の報告はありません</div>';
-                        moreDiv.innerHTML = '';
-                        return;
-                    }
-
-                    console.log('[Debug] Appending ' + response.data.length + ' items to list.');
-                    response.data.forEach(function (item) {
+                    items.forEach(item => {
                         const card = createIncidentPendingCard(item);
                         listEl.appendChild(card);
                     });
 
-                    APP_STATE.pending.offset += response.data.length;
-                    APP_STATE.pending.hasMore = response.hasMore;
-
-                    // Render "Load More" button if needed
-                    if (APP_STATE.pending.hasMore) {
-                        // [Fix] Add relative and z-50 to ensure clickability
-                        moreDiv.innerHTML = '<div class="flex justify-center py-4 relative z-50">' +
-                            '<button id="btn-pending-load-more" onclick="loadIncidentPendingList(true)" class="relative z-50 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition flex items-center gap-2">' +
-                            '<span>もっと読み込む</span>' +
-                            '<i class="fas fa-chevron-down text-sm"></i>' +
-                            '</button></div>';
-
-                        // Failsafe
-                        setTimeout(function () {
-                            if (APP_STATE.pending.loading) {
-                                APP_STATE.pending.loading = false;
-                            }
-                        }, 5000);
-
-                    } else {
-                        moreDiv.innerHTML = '<div class="text-center py-4 text-gray-400 text-sm">すべて表示しました</div>';
+                    // Update State for Pagination
+                    if (APP_STATE.pending) {
+                        APP_STATE.pending.offset += items.length;
+                        APP_STATE.pending.hasMore = hasMore;
+                        APP_STATE.pending.loading = false;
                     }
 
+                    // Load More Button
+                    const loadMoreContainer = document.getElementById('incident-pending-load-more');
+                    if (loadMoreContainer) {
+                        loadMoreContainer.innerHTML = '';
+                        if (hasMore) {
+                            const btn = document.createElement('button');
+                            btn.className = 'mx-auto flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-600 font-bold py-2 px-6 rounded-full shadow-sm hover:bg-gray-50 transition';
+                            btn.innerHTML = '<span>もっと見る</span><i class="fas fa-chevron-down text-xs"></i>';
+                            btn.onclick = () => loadIncidentPendingList(true);
+                            loadMoreContainer.appendChild(btn);
+                            loadMoreContainer.classList.remove('hidden');
+                        } else {
+                            loadMoreContainer.classList.add('hidden');
+                        }
+                    }
                 })
-                .withFailureHandler(function (error) {
+                .withFailureHandler(err => {
                     APP_STATE.pending.loading = false;
-                    console.error('Pending load error:', error);
-                    alert('読み込みエラー: ' + error.message);
-                    if (isLoadMore) {
+                    console.error('[Error] loadIncidentPendingList:', err);
+                    // Error state (remove spinner)
+                    const spinner = document.getElementById('pending-spinner');
+                    if (spinner) spinner.remove();
+
+                    if (!isLoadMore) {
+                        document.getElementById('incident-pending-list').innerHTML = `<div class="text-red-500 text-center py-4">読み込みエラー: ${err.message}</div>`;
+                    } else {
                         document.getElementById('incident-pending-load-more').innerHTML = '<div class="text-center text-red-500">再試行してください</div>';
                     }
                 })
@@ -5065,7 +5074,8 @@
 
         function createIncidentPendingCard(item) {
             const card = document.createElement('div');
-            card.className = 'incident-card flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-indigo-300 cursor-pointer transition';
+            // Unified Card Style (Matching History Card + h-full)
+            card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm h-full';
 
             card.onclick = () => {
                 setTimeout(() => viewIncidentDetail(item), 0);
@@ -5074,15 +5084,18 @@
             const isReturned = (item.status === '差戻し' || item.status === '差戻');
             const targetUser = item.user || item.userName || '(対象者不明)';
 
+            // Status Badge Colors
+            const statusClass = isReturned ? 'bg-red-100 text-red-700' : 'bg-indigo-100 text-indigo-700';
+
             card.innerHTML = `
                 <div class="flex-1 min-w-0">
                     <!-- Row 1: Status | Date -->
                     <div class="flex items-center gap-2 mb-1">
-                        <span class="status-badge ${isReturned ? 'status-returned' : 'status-pending'}">${item.status}</span>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${statusClass}">${item.status}</span>
                         <span class="text-[10px] font-bold text-gray-400">${(item.occurDate || '').toString().replace('T', ' ')}</span>
                     </div>
                     <!-- Row 2: Target | Category -->
-                    <div class="text-sm font-bold text-gray-800 truncate mb-1">${targetUser} / ${item.type}</div>
+                    <h4 class="text-sm font-bold text-gray-800 truncate mb-1">${targetUser} / ${item.type}</h4>
                     <!-- Row 3: Recorder -->
                     <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${item.recorder || '(不明)'}</div>
                     <!-- Row 4: Content (Situation) -->
@@ -5099,8 +5112,8 @@
                         </div>
                     ` : `<p class="text-[10px] text-red-500 font-bold mt-1 bg-red-50 p-1 rounded"><i class="fas fa-comment-dots mr-1"></i>差戻し理由: 修正が必要です</p>`) : ''}
                 </div>
-                <div class="flex gap-2 shrink-0 ml-2">
-                     <i class="fas fa-chevron-right text-gray-300"></i>
+                <div class="text-xs text-gray-400 shrink-0 ml-2">
+                     <i class="fas fa-chevron-right"></i>
                 </div>
              `;
             return card;
