@@ -1052,130 +1052,121 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
             return { data: [], hasMore: false, debugLogs: debugLogs };
         }
 
+        // [v55.3 Performance] Column-Based Scan (Index & Fetch)
+        // Scans ONLY Status (Col 12) and Recorder (Col 4) columns first.
+        // Much faster than fetching all columns for 100k+ rows.
+
         const lastRow = sheet.getLastRow();
         if (lastRow < 2) return { data: [], hasMore: false, debugLogs: debugLogs };
 
-        // [v55.1] Optimization: Reverse Chunk Fetching
+        // 1. Fetch Index Columns (Status & Recorder)
+        // Range: Row 2 to LastRow
+        const numRows = lastRow - 1;
+        const statusValues = sheet.getRange(2, 12, numRows, 1).getValues(); // Col L
+        const recorderValues = sheet.getRange(2, 4, numRows, 1).getValues(); // Col D
+
         const norm = s => (String(s || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
         const myNameNorm = norm(whoami.name);
         const isManager = (whoami.role === 'manager');
 
-        const matched = [];
+        const matchedIndices = []; // Array of { rowIndex, id (we don't have ID yet, wait) } -> Just row indices
+        // Actually we need ID for checking? No, ID is Col 1. We verify ID existence later or assume valid if Status exists.
+        // Let's just track row indices.
 
-        const CHUNK_SIZE = 2000;
-        let currentLastRow = sheet.getLastRow();
+        log(`[Index Scan] Start. Rows: ${numRows}, Manager: ${isManager}, User: ${whoami.name}`);
 
-        // Safety break
-        const MAX_SCAN_ROWS = 300000;
-        let scannedRows = 0;
-
-        // [Debug] Dump scan results for first few rows
-        const debugRowDump = [];
-
-        log(`[Chunk Scan] Start. TotalRows: ${currentLastRow}`);
-
-        while (currentLastRow >= 2 && matched.length < (offset + limit)) {
-            if (scannedRows >= MAX_SCAN_ROWS) {
-                log('[Warn] Max scan limit reached.');
+        // 2. In-Memory Filter (Reverse: Newest First)
+        for (let i = numRows - 1; i >= 0; i--) {
+            // Check Offset/Limit
+            if (matchedIndices.length >= (offset + limit + 10)) { // Fetch a bit more to ensure enough for pagination
+                // We fetch a few more than (offset + limit) to correctly determine 'hasMore'
+                // without needing to scan the entire sheet if we hit the limit early.
+                // The exact number (e.g., +10) is a heuristic to balance performance and accuracy.
                 break;
             }
 
-            const startRow = Math.max(2, currentLastRow - CHUNK_SIZE + 1);
-            const numRows = currentLastRow - startRow + 1;
+            const rawStatus = (statusValues[i][0] || '未承認').toString();
+            const status = rawStatus.replace(/[\s\u3000]+/g, '');
+            const recorder = recorderValues[i][0];
 
-            log(`[Chunk] Scanning rows ${startRow} - ${currentLastRow} (${numRows} rows). Matches so far: ${matched.length}`);
+            let isMatch = false;
 
-            // Fetch Chunk
-            const data = sheet.getRange(startRow, 1, numRows, 16).getValues();
-            let chunkMatches = 0;
-
-            // Loop Chunk Backwards
-            for (let i = data.length - 1; i >= 0; i--) {
-                const row = data[i];
-
-                // [Fix] Aggressive status normalization (Remove ALL whitespace)
-                // " 差戻し " -> "差戻し", "差　戻し" -> "差戻し"
-                const rawStatus = (row[11] || '未承認').toString();
-                const status = rawStatus.replace(/[\s\u3000]+/g, '');
-
-                const recorder = row[3];
-
-                // [Debug] Dump the first 20 processed rows for validation
-                if (debugRowDump.length < 20) {
-                    debugRowDump.push({
-                        line: startRow + i,
-                        id: row[0],
-                        rec: recorder,
-                        rawSt: rawStatus,
-                        normSt: status,
-                        isMgr: isManager
-                    });
+            if (isManager) {
+                // Manager: sees "Return" items
+                if (status === '差戻し' || status === '差戻' || status === '差し戻し') {
+                    isMatch = true;
                 }
-
-                let isMatch = false;
-
-                if (isManager) {
-                    // Check normalized status
-                    if (status === '差戻し' || status === '差戻' || status === '差し戻し') {
+            } else {
+                // Staff: sees Own "Pending" or "Return"
+                const rNorm = norm(recorder);
+                if (rNorm === myNameNorm) {
+                    if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
                         isMatch = true;
-                    } else if (status.includes('差') || status.includes('戻')) {
-                        // Debug closer misses (but ignore completely different statuses)
-                        log(`[Debug Manager] Rejected close match: ID=${row[0]}, RawStatus='${rawStatus}', NormStatus='${status}'`);
                     }
-                } else {
-                    const rNorm = norm(recorder);
-                    if (rNorm === myNameNorm) {
-                        if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
-                            isMatch = true;
-                        }
-                    }
-                }
-
-                if (isMatch) {
-                    chunkMatches++;
-                    const globalRowIndex = startRow + i;
-                    const id = row[0];
-                    const item = {
-                        rowId: globalRowIndex,
-                        id: id,
-                        createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss") : '',
-                        occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-                        recorder: row[3],
-                        user: row[4],
-                        userName: row[4],
-                        type: row[5],
-                        place: row[6],
-                        situation: row[7],
-                        cause: row[8],
-                        response: row[9],
-                        prevention: row[10],
-                        status: row[11], // Return raw status for display
-                        approver: row[12],
-                        approvedAt: row[13],
-                        returnReason: row[14],
-                        returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
-                    };
-                    matched.push(item);
                 }
             }
 
-            log(`[Chunk] Finished. Matches in this chunk: ${chunkMatches}`);
-            scannedRows += numRows;
-            currentLastRow -= numRows;
+            if (isMatch) {
+                matchedIndices.push(i + 2); // Convert to 1-based Row Index
+            }
         }
 
-        // Pagination
-        const paged = matched.slice(offset, offset + limit);
-        const hasMore = matched.length > (offset + limit);
+        log(`[Index Scan] Done. Matches found: ${matchedIndices.length}`);
 
-        log(`[getPendingIncidentsByOffice] Done. Scanned: ${scannedRows}, Matched: ${matched.length}, Returning: ${paged.length}`);
+        // 3. Fetch Full Data for Matches
+        // Apply Offset & Limit
+        const pageIndices = matchedIndices.slice(offset, offset + limit);
+        const results = [];
+
+        if (pageIndices.length > 0) {
+            // Construct A1 Notations (e.g., "A100:P100")
+            const ranges = pageIndices.map(r => `A${r}:P${r}`);
+            const rangeList = sheet.getRangeList(ranges);
+            const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
+
+            // Map to Objects
+            for (let i = 0; i < rangeValues.length; i++) {
+                const row = rangeValues[i];
+                const rowIndex = pageIndices[i];
+
+                // ID Check
+                if (!row[0]) continue;
+
+                // Re-normalize status for display if needed, but we trust the index
+                const rawStatus = (row[11] || '未承認').toString();
+                // We use the raw value from the full fetch for consistency
+
+                results.push({
+                    rowId: rowIndex,
+                    id: row[0],
+                    createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss") : '',
+                    occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    recorder: row[3],
+                    user: row[4],
+                    userName: row[4],
+                    type: row[5],
+                    place: row[6],
+                    situation: row[7],
+                    cause: row[8],
+                    response: row[9],
+                    prevention: row[10],
+                    status: rawStatus, // Use the raw status from row
+                    approver: row[12],
+                    approvedAt: row[13] ? Utilities.formatDate(new Date(row[13]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    returnReason: row[14],
+                    returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
+                });
+            }
+        }
+
+        const hasMore = matchedIndices.length > (offset + limit);
+
+        log(`[Fetch] Done. Returning ${results.length} items.`);
 
         return {
-            data: paged,
+            data: results,
             hasMore: hasMore,
-            total: matched.length,
-            debugLogs: debugLogs,
-            debugRowDump: debugRowDump // [Debug] Return row dump
+            debugLogs: debugLogs
         };
 
     } catch (e) {
