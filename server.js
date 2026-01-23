@@ -1615,6 +1615,7 @@ function restoreFromTrash(officeName, trashRowIndex) {
  */
 function deleteIncidentByOffice(officeName, rowId, whoami) {
     try {
+        return deleteIncidentByOfficeV2(officeName, rowId, whoami); /*
         const files = getFilesByOffice(officeName);
         const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
         const trashName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_TRASH) ? SHEET_NAMES.INCIDENT_TRASH : 'incident_trash';
@@ -1660,6 +1661,7 @@ function deleteIncidentByOffice(officeName, rowId, whoami) {
             action: 'INCIDENT_TRASH', targetType: 'INCIDENT', targetId: String(rowId), status: 'SUCCESS'
         });
         return "ゴミ箱へ移動しました";
+    */
     } catch (e) {
         throw new Error('削除に失敗: ' + e.message);
     }
