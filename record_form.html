@@ -1539,24 +1539,23 @@
 
                         <!-- 3. 承認待ち (Approval) -->
                         <section id="incidentApprovalSection" class="hidden flex flex-col w-full flex-1 h-full min-h-0">
-                            <div class="flex flex-col lg:flex-row h-full min-h-0">
-                                <div
-                                    class="w-full bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm flex-1">
-                                    <div
-                                        class="bg-gray-50 p-3 border-b border-gray-200 flex justify-between items-center">
-                                        <div class="flex items-center gap-2">
-                                            <span class="font-bold text-xs text-gray-600">未承認リスト</span>
-                                            <span id="inc-pending-count"
-                                                class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0件</span>
-                                        </div>
-                                    </div>
-                                    <div class="flex-1 overflow-y-auto custom-scrollbar">
-                                        <div id="incidentApprovalList"
-                                            class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4"></div>
-                                        <div id="approval-load-more-container" class="py-4 text-center"></div>
-                                    </div>
+                            <!-- Scrollable Area with Padding for FAB -->
+                            <div class="w-full h-full flex flex-col p-4 pb-28 overflow-y-auto custom-scrollbar">
+
+                                <!-- Header similar to History or simple label -->
+                                <div class="flex justify-between items-center mb-4 px-2">
+                                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                        未承認リスト
+                                        <span id="inc-pending-count"
+                                            class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-indigo-600 border border-indigo-100 shadow-sm">0件</span>
+                                    </h2>
                                 </div>
 
+                                <!-- List Grid -->
+                                <div id="incidentApprovalList" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+
+                                <!-- Load More -->
+                                <div id="approval-load-more-container" class="mt-4 text-center"></div>
                             </div>
                         </section>
                     </div>
