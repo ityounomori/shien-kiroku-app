@@ -5530,7 +5530,11 @@
 
                     showToast('success', '承認しました');
                     document.getElementById('incidentDetailPanel').classList.add('hidden');
-                    loadIncidentApprovalList();
+
+                    // [Fix] Context-aware reload
+                    if (!document.getElementById('incidentPendingSection').classList.contains('hidden')) loadIncidentPendingList();
+                    if (!document.getElementById('incidentApprovalSection').classList.contains('hidden')) loadIncidentApprovalList();
+                    if (!document.getElementById('incidentHistorySection').classList.contains('hidden')) loadIncidentHistory();
                 }).withFailureHandler((err) => {
                     console.error('[Error] approveIncidentByOffice Failed:', err);
                     setButtonLoading(pinBtn, false);
@@ -5755,7 +5759,11 @@
                 closeReturnModal();
                 showToast('success', typeof res === 'string' ? res : '記録を差し戻しました');
                 document.getElementById('incidentDetailPanel').classList.add('hidden');
-                loadIncidentApprovalList();
+
+                // [Fix] Context-aware reload
+                if (!document.getElementById('incidentPendingSection').classList.contains('hidden')) loadIncidentPendingList();
+                if (!document.getElementById('incidentApprovalSection').classList.contains('hidden')) loadIncidentApprovalList();
+                if (!document.getElementById('incidentHistorySection').classList.contains('hidden')) loadIncidentHistory();
             }).withFailureHandler(err => {
                 setButtonLoading(btn, false);
                 txt.textContent = originalText;
