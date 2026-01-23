@@ -1103,9 +1103,9 @@ function getIncidentsByOfficeV2(officeName) {
 }
 
 /**
- * [v57] Optimized Pending List Fetcher (Early-Exit Chunked Scan)
- * Scans from newest to oldest in chunks.
- * Stops IMMEDIATELY when 50 items are found.
+ * [v58] Optimized Pending List Fetcher (Two-Stage Hybrid Scan)
+ * Stage 1: Scan recent 2000 rows (Fast for active items).
+ * Stage 2: If needed, fetch ALL remaining rows in one batch (Fast for empty/sparse cases).
  */
 function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami) {
     const debugLogs = [];
@@ -1137,39 +1137,29 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         const myNameNorm = (String(whoami.name || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
 
         const foundIndices = [];
-        let currentRow = lastRow;
-        const CHUNK_SIZE = 2000;
 
-        // --- Early Exit Chunked Loop ---
-        while (currentRow >= 2 && foundIndices.length < targetCount + 1) {
-            const startRow = Math.max(2, currentRow - CHUNK_SIZE + 1);
-            const numRows = currentRow - startRow + 1;
-            if (numRows <= 0) break;
+        // --- STAGE 1: Recent Scan (Last 2000 rows) ---
+        const SCAN_LIMIT = 2000;
+        let scanStartRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
+        let numRows = lastRow - scanStartRow + 1;
 
-            const statusValues = sheet.getRange(startRow, 12, numRows, 1).getValues();
-            const recorderValues = sheet.getRange(startRow, 4, numRows, 1).getValues();
+        if (numRows > 0) {
+            const statusValues = sheet.getRange(scanStartRow, 12, numRows, 1).getValues();
+            const recorderValues = sheet.getRange(scanStartRow, 4, numRows, 1).getValues();
 
             for (let i = numRows - 1; i >= 0; i--) {
-                const rowIndex = startRow + i;
-
+                const rowIndex = scanStartRow + i;
                 const rawStatus = (statusValues[i][0] || '未承認').toString();
                 const status = rawStatus.replace(/[\s\u3000]+/g, '');
 
                 let isMatch = false;
-
                 if (isManager) {
-                    // Manager: Only "差戻し" etc.
-                    if (status === '差戻し' || status === '差戻' || status === '差し戻し') {
-                        isMatch = true;
-                    }
+                    if (status === '差戻し' || status === '差戻' || status === '差し戻し') isMatch = true;
                 } else {
-                    // Staff: "未承認" OR "差戻し" AND match Recorder
                     if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
                         const rawRecorder = (recorderValues[i][0] || '').toString();
                         const rName = rawRecorder.replace(/[\s\u3000]+/g, '').toLowerCase();
-                        if (rName === myNameNorm) {
-                            isMatch = true;
-                        }
+                        if (rName === myNameNorm) isMatch = true;
                     }
                 }
 
@@ -1178,11 +1168,43 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
                     if (foundIndices.length >= targetCount + 1) break;
                 }
             }
-
-            if (foundIndices.length >= targetCount + 1) break;
-            currentRow = startRow - 1;
         }
 
+        // --- STAGE 2: Deep Scan (Remaining rows) ---
+        // If we still need more items and there are rows left to scan
+        if (foundIndices.length < targetCount + 1 && scanStartRow > 2) {
+            const remainderRows = scanStartRow - 2; // Rows from 2 to scanStartRow-1
+            if (remainderRows > 0) {
+                log(`[Stage 2] Fetching remaining ${remainderRows} rows...`);
+
+                const statusValues = sheet.getRange(2, 12, remainderRows, 1).getValues();
+                const recorderValues = sheet.getRange(2, 4, remainderRows, 1).getValues();
+
+                for (let i = remainderRows - 1; i >= 0; i--) {
+                    const rowIndex = 2 + i;
+                    const rawStatus = (statusValues[i][0] || '未承認').toString();
+                    const status = rawStatus.replace(/[\s\u3000]+/g, '');
+
+                    let isMatch = false;
+                    if (isManager) {
+                        if (status === '差戻し' || status === '差戻' || status === '差し戻し') isMatch = true;
+                    } else {
+                        if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
+                            const rawRecorder = (recorderValues[i][0] || '').toString();
+                            const rName = rawRecorder.replace(/[\s\u3000]+/g, '').toLowerCase();
+                            if (rName === myNameNorm) isMatch = true;
+                        }
+                    }
+
+                    if (isMatch) {
+                        foundIndices.push(rowIndex);
+                        if (foundIndices.length >= targetCount + 1) break;
+                    }
+                }
+            }
+        }
+
+        // --- Pagination & Data Fetch ---
         const pageIndices = foundIndices.slice(offset, offset + limit);
         const hasMore = foundIndices.length > (offset + limit);
         const results = [];
@@ -1972,9 +1994,9 @@ function getIncidentCsvData(officeName, filters) {
 
 
 /**
- * [v57] Optimized Approval List Fetcher (Early-Exit Chunked Scan)
- * Scans from newest to oldest in chunks.
- * Stops IMMEDIATELY when 50 items are found.
+ * [v58] Optimized Approval List Fetcher (Two-Stage Hybrid Scan)
+ * Stage 1: Scan recent 2000 rows.
+ * Stage 2: If needed, fetch ALL remaining rows.
  */
 function getApprovalIncidentsBatched(officeName, lastRowId = null) {
     try {
@@ -1998,18 +2020,17 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
 
         const LIMIT = 50;
         const foundIndices = [];
-        const CHUNK_SIZE = 2000;
 
-        // --- Early Exit Chunked Loop ---
-        while (currentRow >= 2 && foundIndices.length < LIMIT + 1) {
-            const startRow = Math.max(2, currentRow - CHUNK_SIZE + 1);
-            const numRows = currentRow - startRow + 1;
-            if (numRows <= 0) break;
+        // --- STAGE 1: Recent Scan (Last 2000 rows from currentRow) ---
+        const SCAN_LIMIT = 2000;
+        let scanStartRow = Math.max(2, currentRow - SCAN_LIMIT + 1);
+        let numRows = currentRow - scanStartRow + 1;
 
-            const statusValues = sheet.getRange(startRow, 12, numRows, 1).getValues();
+        if (numRows > 0) {
+            const statusValues = sheet.getRange(scanStartRow, 12, numRows, 1).getValues();
 
             for (let i = numRows - 1; i >= 0; i--) {
-                const rowIndex = startRow + i;
+                const rowIndex = scanStartRow + i;
                 const rawStatus = (statusValues[i][0] || '未承認').toString();
                 const status = rawStatus.replace(/[\s\u3000]+/g, '');
 
@@ -2018,9 +2039,26 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
                     if (foundIndices.length >= LIMIT + 1) break;
                 }
             }
+        }
 
-            if (foundIndices.length >= LIMIT + 1) break;
-            currentRow = startRow - 1;
+        // --- STAGE 2: Deep Scan (Remaining rows) ---
+        if (foundIndices.length < LIMIT + 1 && scanStartRow > 2) {
+            // Fetch ALL from 2 to scanStartRow - 1
+            const remainderRows = scanStartRow - 2;
+            if (remainderRows > 0) {
+                const statusValues = sheet.getRange(2, 12, remainderRows, 1).getValues();
+
+                for (let i = remainderRows - 1; i >= 0; i--) {
+                    const rowIndex = 2 + i;
+                    const rawStatus = (statusValues[i][0] || '未承認').toString();
+                    const status = rawStatus.replace(/[\s\u3000]+/g, '');
+
+                    if (status === '未承認') {
+                        foundIndices.push(rowIndex);
+                        if (foundIndices.length >= LIMIT + 1) break;
+                    }
+                }
+            }
         }
 
         const hasMore = foundIndices.length > LIMIT;
