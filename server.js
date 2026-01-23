@@ -1613,9 +1613,20 @@ function restoreFromTrash(officeName, trashRowIndex) {
 /**
  * インシデント削除 (ゴミ箱へ移動)
  */
+/**
+ * インシデント削除 (ゴミ箱へ移動)
+ * [Refactored] Integrated V2 logic (LockService, flush, validation)
+ */
 function deleteIncidentByOffice(officeName, rowId, whoami) {
+    const lock = LockService.getScriptLock();
     try {
-        return deleteIncidentByOfficeV2(officeName, rowId, whoami); /*
+        // Wait for up to 5 seconds for other processes
+        if (!lock.tryLock(5000)) {
+            throw new Error('他ユーザーが処理中です。もう一度お試しください。');
+        }
+
+        console.log(`[Delete] Started. Office: ${officeName}, RowId: ${rowId}, User: ${whoami.name}`);
+
         const files = getFilesByOffice(officeName);
         const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
         const trashName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_TRASH) ? SHEET_NAMES.INCIDENT_TRASH : 'incident_trash';
@@ -1624,46 +1635,49 @@ function deleteIncidentByOffice(officeName, rowId, whoami) {
         const sheet = ss.getSheetByName(sheetName);
         if (!sheet) throw new Error('Incident sheet not found');
 
-        // ゴミ箱シート取得（なければ作成）
+        const targetRow = Number(rowId);
+        const lastRow = sheet.getLastRow();
+        if (targetRow > lastRow || targetRow < 2) {
+            console.warn(`[Delete] Row ${targetRow} out of bounds (LastRow: ${lastRow})`);
+            return "既に削除されたか、存在しない行です";
+        }
+
         let trashSheet = ss.getSheetByName(trashName);
         if (!trashSheet) {
             trashSheet = ss.insertSheet(trashName);
-            // ヘッダーコピー（初回のみ）
             const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-            // ゴミ箱用管理列を追加（削除日時、削除者、元シートRowIDなどが必要だが、
-            // 既存のゴミ箱ロジックに合わせて、元のデータを保持しつつ、
-            // 削除日時(Col1), 削除者(Col2) を先頭に追加挿入する形式にするか、
-            // あるいは末尾に追加するか。
-            // 支援記録ゴミ箱は [DeleteDate, Deleter, ...OriginalCols] の形式ではない。
-            // OriginalCols そのまま + DeleteDate?
-            // 支援記録ゴミ箱ロジック(deleteRecordByOffice)を見ると：
-            // targetSheet のデータを取得 -> trashSheet.appendRow([new Date(), whoami.name, ...values])
-
-            // 定義済みヘッダー + "DeletedAt", "DeletedBy"
             trashSheet.appendRow(["DeletedAt", "DeletedBy", ...headers]);
         }
 
-        // データの取得
         const lastCol = sheet.getLastColumn();
-        // rowId is 1-based index
-        const dataRange = sheet.getRange(Number(rowId), 1, 1, lastCol);
+        const dataRange = sheet.getRange(targetRow, 1, 1, lastCol);
         const values = dataRange.getValues()[0];
 
-        // ゴミ箱へ移動 (DeletedAt, DeletedBy, ...Data)
+        if (!values[0]) {
+            console.warn(`[Delete] Row ${targetRow} is empty.`);
+            sheet.deleteRow(targetRow);
+            SpreadsheetApp.flush();
+            return "既に削除された行です";
+        }
+
         const now = new Date();
         trashSheet.appendRow([now, whoami.name, ...values]);
 
-        // 元データを削除
-        sheet.deleteRow(Number(rowId));
+        sheet.deleteRow(targetRow);
+        SpreadsheetApp.flush();
 
         logEvent({
             executor: whoami.name, officeSelected: officeName,
             action: 'INCIDENT_TRASH', targetType: 'INCIDENT', targetId: String(rowId), status: 'SUCCESS'
         });
+
+        console.log(`[Delete] Completed successfully for Row ${targetRow}`);
         return "ゴミ箱へ移動しました";
-    */
     } catch (e) {
+        console.error(`[Delete] Failed: ${e.message}`);
         throw new Error('削除に失敗: ' + e.message);
+    } finally {
+        lock.releaseLock();
     }
 }
 
@@ -2091,5 +2105,72 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
     } catch (e) {
         console.error('getApprovalIncidentsBatched Error:', e);
         return { data: [], debug: { error: e.toString() } };
+    }
+}
+
+/**
+ * インシデント削除 (ゴミ箱へ移動) [V2 Logic]
+ * Includes LockService, flush(), and robust validation.
+ */
+function deleteIncidentByOfficeV2(officeName, rowId, whoami) {
+    const lock = LockService.getScriptLock();
+    try {
+        if (!lock.tryLock(5000)) {
+            throw new Error('他ユーザーが処理中です。もう一度お試しください。');
+        }
+
+        console.log(`[DeleteV2] Started. Office: ${officeName}, RowId: ${rowId}, User: ${whoami.name}`);
+
+        const files = getFilesByOffice(officeName);
+        const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
+        const trashName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_TRASH) ? SHEET_NAMES.INCIDENT_TRASH : 'incident_trash';
+
+        const ss = SpreadsheetApp.openById(files.incidentFileId);
+        const sheet = ss.getSheetByName(sheetName);
+        if (!sheet) throw new Error('Incident sheet not found');
+
+        const targetRow = Number(rowId);
+        const lastRow = sheet.getLastRow();
+        if (targetRow > lastRow || targetRow < 2) {
+            console.warn(`[DeleteV2] Row ${targetRow} out of bounds (LastRow: ${lastRow})`);
+            return "既に削除されたか、存在しない行です";
+        }
+
+        let trashSheet = ss.getSheetByName(trashName);
+        if (!trashSheet) {
+            trashSheet = ss.insertSheet(trashName);
+            const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+            trashSheet.appendRow(["DeletedAt", "DeletedBy", ...headers]);
+        }
+
+        const lastCol = sheet.getLastColumn();
+        const dataRange = sheet.getRange(targetRow, 1, 1, lastCol);
+        const values = dataRange.getValues()[0];
+
+        if (!values[0]) {
+            console.warn(`[DeleteV2] Row ${targetRow} is empty.`);
+            sheet.deleteRow(targetRow);
+            SpreadsheetApp.flush();
+            return "既に削除された行です";
+        }
+
+        const now = new Date();
+        trashSheet.appendRow([now, whoami.name, ...values]);
+
+        sheet.deleteRow(targetRow);
+        SpreadsheetApp.flush();
+
+        logEvent({
+            executor: whoami.name, officeSelected: officeName,
+            action: 'INCIDENT_TRASH', targetType: 'INCIDENT', targetId: String(rowId), status: 'SUCCESS'
+        });
+
+        console.log(`[DeleteV2] Completed successfully for Row ${targetRow}`);
+        return "ゴミ箱へ移動しました";
+    } catch (e) {
+        console.error(`[DeleteV2] Failed: ${e.message}`);
+        throw new Error('削除に失敗: ' + e.message);
+    } finally {
+        lock.releaseLock();
     }
 }
