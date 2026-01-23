@@ -1103,9 +1103,9 @@ function getIncidentsByOfficeV2(officeName) {
 }
 
 /**
- * [v56] Optimized Pending List Fetcher (TextFinder Version)
- * Uses TextFinder to locate "Pending" or "Returned" items without scanning the whole column.
- * Much faster for large datasets with few pending items.
+ * [v57] Optimized Pending List Fetcher (Early-Exit Chunked Scan)
+ * Scans from newest to oldest in chunks.
+ * Stops IMMEDIATELY when 50 items are found.
  */
 function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami) {
     const debugLogs = [];
@@ -1115,94 +1115,78 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
     };
 
     try {
-        log(`[getPendingIncidentsByOffice] Start. Office: ${officeName}, Limit: ${limit}, Offset: ${offset}, User: ${whoami ? whoami.name : 'Unknown'}`);
+        log(`[getPendingIncidentsByOffice] Start. Office: ${officeName}, Limit: ${limit}, User: ${whoami ? whoami.name : 'Unknown'}`);
 
         if (!officeName) throw new Error('Office not specified');
 
-        // Validate limit/offset
-        limit = Math.max(1, Math.min(limit, 100)); // Cap at 100
+        limit = Math.max(1, Math.min(limit, 100));
         offset = Math.max(0, offset);
+        const targetCount = limit + offset;
 
         const files = getFilesByOffice(officeName);
         const ss = SpreadsheetApp.openById(files.incidentFileId);
-
         const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
         const sheet = ss.getSheetByName(sheetName);
 
-        if (!sheet) {
-            log(`[Warn] Sheet "${sheetName}" not found.`);
-            return { data: [], hasMore: false, debugLogs: debugLogs };
-        }
+        if (!sheet) return { data: [], hasMore: false, debugLogs: debugLogs };
 
         const lastRow = sheet.getLastRow();
         if (lastRow < 2) return { data: [], hasMore: false, debugLogs: debugLogs };
 
-        // --- TextFinder Optimization ---
-        // Search specific statuses in Column L (Index 12)
-        // Manager: Needs to see '差戻し' (Returned) usually? 
-        // * Actually, looking at previous logic:
-        //   Manager: "Return" only.
-        //   Staff: "Unapproved" AND "Return" (My own).
-
         const isManager = (whoami.role === 'manager');
         const myNameNorm = (String(whoami.name || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
 
-        // 1. Find relevant rows using TextFinder
-        // We search for multiple terms to be safe: '未承認', '差戻し', '差戻', '差し戻し'
-        // Implementation: Search for each term and merge results.
+        const foundIndices = [];
+        let currentRow = lastRow;
+        const CHUNK_SIZE = 2000;
 
-        const targetStatuses = [];
-        if (!isManager) targetStatuses.push('未承認'); // Staff needs to see Unapproved
-        targetStatuses.push('差戻し', '差戻', '差し戻し'); // Both see Returned
+        // --- Early Exit Chunked Loop ---
+        while (currentRow >= 2 && foundIndices.length < targetCount + 1) {
+            const startRow = Math.max(2, currentRow - CHUNK_SIZE + 1);
+            const numRows = currentRow - startRow + 1;
+            if (numRows <= 0) break;
 
-        let matchedRowSet = new Set();
+            const statusValues = sheet.getRange(startRow, 12, numRows, 1).getValues();
+            const recorderValues = sheet.getRange(startRow, 4, numRows, 1).getValues();
 
-        // Search in Column L (12)
-        const statusRange = sheet.getRange("L:L");
+            for (let i = numRows - 1; i >= 0; i--) {
+                const rowIndex = startRow + i;
 
-        targetStatuses.forEach(term => {
-            const tempFound = statusRange.createTextFinder(term).matchEntireCell(true).findAll();
-            tempFound.forEach(cell => {
-                const r = cell.getRow();
-                if (r >= 2) matchedRowSet.add(r);
-            });
-        });
+                const rawStatus = (statusValues[i][0] || '未承認').toString();
+                const status = rawStatus.replace(/[\s\u3000]+/g, '');
 
-        // Convert to Array and Sort Descending (Newest First)
-        let matchedIndices = Array.from(matchedRowSet).sort((a, b) => b - a);
+                let isMatch = false;
 
-        log(`[TextFinder] Found ${matchedIndices.length} matches.`);
+                if (isManager) {
+                    // Manager: Only "差戻し" etc.
+                    if (status === '差戻し' || status === '差戻' || status === '差し戻し') {
+                        isMatch = true;
+                    }
+                } else {
+                    // Staff: "未承認" OR "差戻し" AND match Recorder
+                    if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
+                        const rawRecorder = (recorderValues[i][0] || '').toString();
+                        const rName = rawRecorder.replace(/[\s\u3000]+/g, '').toLowerCase();
+                        if (rName === myNameNorm) {
+                            isMatch = true;
+                        }
+                    }
+                }
 
-        // 2. Filter by Recorder (if Staff)
-        // If Staff, we check Recorder (Col D / Index 4) matches 'whoami.name'
-        // Optimization: Fetch Recorder values for these rows ONLY.
-
-        if (!isManager && matchedIndices.length > 0) {
-            // Batch fetch recorder names for the found rows
-            // To be efficient, we can't just call getRange(row, 4) 100 times.
-            // But if matches are sparse, individual calls might be okay.
-            // Better: create a RangeList.
-
-            const recorderRanges = matchedIndices.map(r => `D${r}`);
-            const recorderValues = sheet.getRangeList(recorderRanges).getRanges().map(r => r.getValue());
-
-            const filteredIndices = [];
-            for (let i = 0; i < matchedIndices.length; i++) {
-                const rName = (String(recorderValues[i] || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
-                if (rName === myNameNorm) {
-                    filteredIndices.push(matchedIndices[i]); // Keep if matches user
+                if (isMatch) {
+                    foundIndices.push(rowIndex);
+                    if (foundIndices.length >= targetCount + 1) break;
                 }
             }
-            matchedIndices = filteredIndices;
-            log(`[TextFinder] Filtered to ${matchedIndices.length} matches (User specific).`);
+
+            if (foundIndices.length >= targetCount + 1) break;
+            currentRow = startRow - 1;
         }
 
-        // 3. Pagination
-        const hasMore = matchedIndices.length > (offset + limit);
-        const pageIndices = matchedIndices.slice(offset, offset + limit);
-
-        // 4. Fetch Full Data
+        const pageIndices = foundIndices.slice(offset, offset + limit);
+        const hasMore = foundIndices.length > (offset + limit);
         const results = [];
+
         if (pageIndices.length > 0) {
             const ranges = pageIndices.map(r => `A${r}:P${r}`);
             const rangeList = sheet.getRangeList(ranges);
@@ -1211,43 +1195,37 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
             for (let i = 0; i < rangeValues.length; i++) {
                 const row = rangeValues[i];
                 const rowIndex = pageIndices[i];
-
                 if (!row[0]) continue;
 
                 results.push({
                     rowId: rowIndex,
-                    id: row[0],
-                    createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm:ss") : '',
+                    id: String(row[0]),
+                    createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
                     occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-                    recorder: row[3],
-                    user: row[4],
-                    userName: row[4],
-                    type: row[5],
-                    place: row[6],
-                    situation: row[7],
-                    cause: row[8],
-                    response: row[9],
-                    prevention: row[10],
-                    status: (row[11] || '').toString(),
-                    approver: row[12],
+                    recorder: String(row[3]),
+                    user: String(row[4]),
+                    userName: String(row[4]),
+                    type: String(row[5]),
+                    place: String(row[6]),
+                    situation: String(row[7]),
+                    cause: String(row[8]),
+                    response: String(row[9]),
+                    prevention: String(row[10]),
+                    status: (row[11] || '未承認').toString(),
+                    approver: String(row[12]),
                     approvedAt: row[13] ? Utilities.formatDate(new Date(row[13]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-                    returnReason: row[14],
+                    returnReason: String(row[14]),
                     returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
                 });
             }
         }
 
-        log(`[Fetch] Done. Returning ${results.length} items.`);
-
-        return {
-            data: results,
-            hasMore: hasMore,
-            debugLogs: debugLogs
-        };
+        log(`[getPendingIncidentsByOffice] Found: ${foundIndices.length}, Returned: ${results.length}, HasMore: ${hasMore}`);
+        return { data: results, hasMore: hasMore, debugLogs: debugLogs };
 
     } catch (e) {
-        console.error('getPendingIncidentsByOffice Error:', e);
-        return { data: [], hasMore: false, error: e.message, debugLogs: debugLogs };
+        log(`Error: ${e.toString()}`);
+        return { data: [], hasMore: false, debugLogs: debugLogs };
     }
 }
 
@@ -1994,9 +1972,9 @@ function getIncidentCsvData(officeName, filters) {
 
 
 /**
- * [v56] Optimized Approval List Fetcher (TextFinder Version)
- * Uses TextFinder to locate "Unapproved" items efficiently.
- * Supports "Load More" via lastRowId.
+ * [v57] Optimized Approval List Fetcher (Early-Exit Chunked Scan)
+ * Scans from newest to oldest in chunks.
+ * Stops IMMEDIATELY when 50 items are found.
  */
 function getApprovalIncidentsBatched(officeName, lastRowId = null) {
     try {
@@ -2013,35 +1991,43 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
         const lastRow = sheet.getLastRow();
         if (lastRow < 2) return { data: [] };
 
-        // 1. Find all "Pending" (Unapproved) items via TextFinder
-        // Search "未承認" in Column L
-        const statusRange = sheet.getRange("L:L");
-        const found = statusRange.createTextFinder('未承認').matchEntireCell(true).findAll();
-
-        let matchIndices = found
-            .map(c => c.getRow())
-            .filter(r => r >= 2)
-            .sort((a, b) => b - a); // Descending (Newest first)
-
-        // 2. Pagination Logic
-        // If lastRowId is provided, filters indices SMALLER than lastRowId
+        let currentRow = lastRow;
         if (lastRowId) {
-            const targetId = parseInt(lastRowId, 10);
-            matchIndices = matchIndices.filter(idx => idx < targetId);
+            currentRow = Math.min(lastRow, parseInt(lastRowId, 10) - 1);
         }
 
-        const totalRemaining = matchIndices.length;
-        const LIMIT = 50; // Batch size per Load
+        const LIMIT = 50;
+        const foundIndices = [];
+        const CHUNK_SIZE = 2000;
 
-        // Take top LIMIT items
-        const targetIndices = matchIndices.slice(0, LIMIT);
-        const hasMore = totalRemaining > LIMIT;
+        // --- Early Exit Chunked Loop ---
+        while (currentRow >= 2 && foundIndices.length < LIMIT + 1) {
+            const startRow = Math.max(2, currentRow - CHUNK_SIZE + 1);
+            const numRows = currentRow - startRow + 1;
+            if (numRows <= 0) break;
 
-        // 3. Batched Fetch
+            const statusValues = sheet.getRange(startRow, 12, numRows, 1).getValues();
+
+            for (let i = numRows - 1; i >= 0; i--) {
+                const rowIndex = startRow + i;
+                const rawStatus = (statusValues[i][0] || '未承認').toString();
+                const status = rawStatus.replace(/[\s\u3000]+/g, '');
+
+                if (status === '未承認') {
+                    foundIndices.push(rowIndex);
+                    if (foundIndices.length >= LIMIT + 1) break;
+                }
+            }
+
+            if (foundIndices.length >= LIMIT + 1) break;
+            currentRow = startRow - 1;
+        }
+
+        const hasMore = foundIndices.length > LIMIT;
+        const targetIndices = foundIndices.slice(0, LIMIT);
         const results = [];
 
         if (targetIndices.length > 0) {
-            // Using RangeList for sparse rows
             const ranges = targetIndices.map(r => `A${r}:P${r}`);
             const rangeList = sheet.getRangeList(ranges);
             const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
@@ -2075,8 +2061,7 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
             }
         }
 
-        // No need to resort results as we fetched in descending order of Row Index (approx. Date order)
-        console.log(`[getApprovalIncidentsBatched] Found: ${matchIndices.length}, Ret: ${results.length}, HasMore: ${hasMore}`);
+        console.log(`[getApprovalIncidentsBatched] Found: ${foundIndices.length}, Ret: ${results.length}, HasMore: ${hasMore}`);
 
         return {
             data: results,
@@ -2090,69 +2075,4 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
     }
 }
 
-/**
- * インシデント削除 (ゴミ箱へ移動) [V2 Logic]
- * Includes LockService, flush(), and robust validation.
- */
-function deleteIncidentByOfficeV2(officeName, rowId, whoami) {
-    const lock = LockService.getScriptLock();
-    try {
-        if (!lock.tryLock(5000)) {
-            throw new Error('他ユーザーが処理中です。もう一度お試しください。');
-        }
 
-        console.log(`[DeleteV2] Started. Office: ${officeName}, RowId: ${rowId}, User: ${whoami.name}`);
-
-        const files = getFilesByOffice(officeName);
-        const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
-        const trashName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_TRASH) ? SHEET_NAMES.INCIDENT_TRASH : 'incident_trash';
-
-        const ss = SpreadsheetApp.openById(files.incidentFileId);
-        const sheet = ss.getSheetByName(sheetName);
-        if (!sheet) throw new Error('Incident sheet not found');
-
-        const targetRow = Number(rowId);
-        const lastRow = sheet.getLastRow();
-        if (targetRow > lastRow || targetRow < 2) {
-            console.warn(`[DeleteV2] Row ${targetRow} out of bounds (LastRow: ${lastRow})`);
-            return "既に削除されたか、存在しない行です";
-        }
-
-        let trashSheet = ss.getSheetByName(trashName);
-        if (!trashSheet) {
-            trashSheet = ss.insertSheet(trashName);
-            const headers = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-            trashSheet.appendRow(["DeletedAt", "DeletedBy", ...headers]);
-        }
-
-        const lastCol = sheet.getLastColumn();
-        const dataRange = sheet.getRange(targetRow, 1, 1, lastCol);
-        const values = dataRange.getValues()[0];
-
-        if (!values[0]) {
-            console.warn(`[DeleteV2] Row ${targetRow} is empty.`);
-            sheet.deleteRow(targetRow);
-            SpreadsheetApp.flush();
-            return "既に削除された行です";
-        }
-
-        const now = new Date();
-        trashSheet.appendRow([now, whoami.name, ...values]);
-
-        sheet.deleteRow(targetRow);
-        SpreadsheetApp.flush();
-
-        logEvent({
-            executor: whoami.name, officeSelected: officeName,
-            action: 'INCIDENT_TRASH', targetType: 'INCIDENT', targetId: String(rowId), status: 'SUCCESS'
-        });
-
-        console.log(`[DeleteV2] Completed successfully for Row ${targetRow}`);
-        return "ゴミ箱へ移動しました";
-    } catch (e) {
-        console.error(`[DeleteV2] Failed: ${e.message}`);
-        throw new Error('削除に失敗: ' + e.message);
-    } finally {
-        lock.releaseLock();
-    }
-}
