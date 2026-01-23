@@ -5131,7 +5131,7 @@
         function createIncidentPendingCard(item) {
             const card = document.createElement('div');
             // Unified Card Style (Matching History Card + h-full)
-            card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm h-full';
+            card.className = 'flex flex-row justify-between items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm h-full';
 
             card.onclick = () => {
                 setTimeout(() => viewIncidentDetail(item), 0);
@@ -6255,7 +6255,7 @@
 
         function createIncidentHistoryCard(item) {
             const card = document.createElement('div');
-            card.className = 'flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
+            card.className = 'flex flex-row justify-between items-center gap-4 p-4 bg-white border border-gray-100 rounded-xl hover:border-indigo-300 transition cursor-pointer shadow-sm';
             card.onclick = () => {
                 setTimeout(() => viewIncidentDetail(item), 0);
             };
