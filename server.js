@@ -166,6 +166,10 @@ function getStaffListByOffice(officeName) {
 /**
  * 職員マスタから指定事業所の職員を取得
  */
+// (Delegate to AuthService)
+function getStaffListRaw() {
+    return AuthService.getStaffListRaw();
+}
 // (Duplicate removed - kept implementation at line ~891)
 
 /**
@@ -205,24 +209,12 @@ function getUserListDirectByOffice(officeName) {
 /**
  * 指定された事業所の職員リストを取得 (Direct)
  */
+
+/**
+ * 指定された事業所の職員リストを取得 (Direct)
+ */
 function getStaffListDirectByOffice(officeName) {
-    const ss = SpreadsheetApp.openById(getMasterFileId());
-    const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_STAFF_LIST);
-    if (!sheet || sheet.getLastRow() < 2) return [];
-
-    const data = sheet.getDataRange().getValues();
-    // A: Name, B: Office(comma sep), C: Role
-    const staffs = [];
-    for (let i = 1; i < data.length; i++) {
-        const name = String(data[i][0]).trim();
-        const offices = String(data[i][1] || '').split(',').map(s => s.trim());
-        const role = String(data[i][2] || 'staff').trim();
-
-        if (name && (offices.length === 0 || offices.includes('') || offices.includes(officeName))) {
-            staffs.push({ name: name, role: role });
-        }
-    }
-    return staffs;
+    return AuthService.getStaffList(officeName);
 }
 
 /**
@@ -249,6 +241,7 @@ function getPhraseListDirectByOffice(officeName) {
 }
 
 
+
 /**
  * PIN認証 & 事業所アクセス権チェック
  * @param {string} officeSelected ユーザーが選択した事業所名
@@ -257,90 +250,36 @@ function getPhraseListDirectByOffice(officeName) {
  */
 function verifyUserByPin(officeSelected, staffName, pin) {
     try {
-        const ss = SpreadsheetApp.openById(getMasterFileId());
-        const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_STAFF_LIST);
-        const data = sheet.getDataRange().getValues();
+        const whoami = AuthService.verifyPin(officeSelected, staffName, pin);
 
-        // 1行目はヘッダーなのでスキップ
-        for (let i = 1; i < data.length; i++) {
-            const rowName = String(data[i][0]).trim();
-            const rowOffices = String(data[i][1] || '').split(',').map(s => s.trim());
-            const rowRole = String(data[i][2] || 'staff').trim();
-            const rowPin = String(data[i][3] || '').trim();
+        logEvent({
+            executor: whoami.name,
+            role: whoami.role,
+            officeSelected: officeSelected,
+            action: 'SIGNIN_SUCCESS',
+            targetType: 'AUTH',
+            status: 'SUCCESS',
+            message: 'サインイン成功'
+        });
 
-            // 名前とPINの一致確認
-            if (rowName === staffName && rowPin === pin) {
-                // 事業所アクセス権の確認
-                // 空欄の場合は「全事業所OK」とみなす、または「所属なし」とする（要件次第だが今回は全許可or指定のみ）
-                // ここでは「空欄なら全許可」または「指定があればその事業所のみ」とします
-                const isAllowed = rowOffices.length === 0 || rowOffices[0] === '' || rowOffices.includes(officeSelected);
+        return whoami;
 
-                if (isAllowed) {
-                    // 認証成功
-                    const whoami = {
-                        success: true,
-                        name: rowName,
-                        role: rowRole,
-                        officeSelected: officeSelected,
-                        officesAuth: rowOffices.join(','),
-                        expiresAt: Date.now() + (60 * 60 * 1000) // 1時間有効
-                    };
-
-                    logEvent({
-                        executor: rowName,
-                        role: rowRole,
-                        officeSelected: officeSelected,
-                        action: 'SIGNIN_SUCCESS',
-                        targetType: 'AUTH',
-                        status: 'SUCCESS',
-                        message: 'サインイン成功'
-                    });
-
-                    return whoami;
-                } else {
-                    // PINは合っているが、事業所権限がない
-                    logEvent({
-                        executor: staffName,
-                        officeSelected: officeSelected,
-                        action: 'SIGNIN_DENIED',
-                        targetType: 'AUTH',
-                        status: 'ERROR',
-                        message: '事業所権限なし'
-                    });
-                    throw new Error(`事業所「${officeSelected}」へのアクセス権限がありません。`);
-                }
-            }
-        }
-        // ループ終了しても見つからない -> 認証失敗
+    } catch (e) {
+        // エラーハンドリングは既存のログ構造に合わせる
         logEvent({
             executor: staffName,
             officeSelected: officeSelected,
             action: 'PIN_FAIL',
             targetType: 'AUTH',
             status: 'ERROR',
-            message: 'PINまたは名前の不一致'
+            message: e.message
         });
-        throw new Error('認証に失敗しました。PINが正しくありません。');
-
-    } catch (e) {
         console.error(e);
-        // クライアントには詳細なエラーメッセージを返す
         return { success: false, message: e.message };
     }
 }
 
-function getStaffListRaw() {
-    const ss = SpreadsheetApp.openById(getMasterFileId());
-    const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_STAFF_LIST);
-    if (!sheet || sheet.getLastRow() < 2) return [];
-    const data = sheet.getDataRange().getValues();
-    return data.slice(1)
-        .filter(r => String(r[0] || '').trim() !== '') // 名前が空の行を除外
-        .map(r => ({
-            name: String(r[0]).trim(),
-            office: String(r[1] || '').split(',')[0].trim() || ''
-        }));
-}
+
 
 function getUserListByOfficeAuto() {
     // This is a placeholder that might be called with context if we had a session on server
@@ -1118,7 +1057,7 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         log(`[getPendingIncidentsByOffice] Start. Office: ${officeName}, Limit: ${limit}, User: ${whoami ? whoami.name : 'Unknown'}`);
 
         if (!officeName) throw new Error('Office not specified');
-        
+
         limit = Math.max(1, Math.min(limit, 100));
         offset = Math.max(0, offset);
 
@@ -1144,28 +1083,28 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         // Manager needs these. Staff also needs these.
         const statusRange = sheet.getRange("L:L");
         const returnTerms = ['差戻し', '差戻', '差し戻し'];
-        
+
         returnTerms.forEach(term => {
-             statusRange.createTextFinder(term).matchEntireCell(true).findAll().forEach(cell => {
-                 const r = cell.getRow();
-                 if (r >= 2) {
-                     candidateSet.add(r);
-                     returnedSet.add(r);
-                 }
-             });
+            statusRange.createTextFinder(term).matchEntireCell(true).findAll().forEach(cell => {
+                const r = cell.getRow();
+                if (r >= 2) {
+                    candidateSet.add(r);
+                    returnedSet.add(r);
+                }
+            });
         });
 
         // 2. Find "My Records" (For Staff Only)
         // Staff needs items where Recorder == Me AND Status == Unapproved
         if (!isManager) {
-             const recorderRange = sheet.getRange("D:D");
-             // Exact match for name
-             recorderRange.createTextFinder(myName).matchEntireCell(true).findAll().forEach(cell => {
-                 const r = cell.getRow();
-                 if (r >= 2) {
-                     candidateSet.add(r);
-                 }
-             });
+            const recorderRange = sheet.getRange("D:D");
+            // Exact match for name
+            recorderRange.createTextFinder(myName).matchEntireCell(true).findAll().forEach(cell => {
+                const r = cell.getRow();
+                if (r >= 2) {
+                    candidateSet.add(r);
+                }
+            });
         }
 
         // 3. Sort Candidates Descending (Newest First)
@@ -1182,46 +1121,46 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
 
         // We process candidates in chunks to minimize getRangeList calls
         // But since candidates are sparse, we should process efficiently.
-        
+
         let i = 0;
         const BATCH_SIZE = 50;
 
         while (i < candidates.length && foundIndices.length < requiredCount) {
-             const batch = candidates.slice(i, i + BATCH_SIZE);
-             const subBatchToCheck = [];
-             
-             // Classify check requirement
-             for (const r of batch) {
-                 if (returnedSet.has(r)) {
-                     // Already confirmed as "Returned", automatic keep
-                     foundIndices.push(r);
-                 } else {
-                     // Need to check status (it's a "My Record" candidate)
-                     subBatchToCheck.push(r);
-                 }
-                 if (foundIndices.length >= requiredCount) break;
-             }
-             
-             if (foundIndices.length >= requiredCount) break;
+            const batch = candidates.slice(i, i + BATCH_SIZE);
+            const subBatchToCheck = [];
 
-             // Fetch statuses for subBatchToCheck
-             if (subBatchToCheck.length > 0) {
-                 const ranges = subBatchToCheck.map(r => `L${r}`);
-                 const rangeList = sheet.getRangeList(ranges);
-                 const rangesObj = rangeList.getRanges();
-                 
-                 for (let k = 0; k < rangesObj.length; k++) {
-                     const r = subBatchToCheck[k];
-                     const val = (rangesObj[k].getValue() || '未承認').toString();
-                     const status = val.replace(/[\s\u3000]+/g, '');
-                     
-                     if (status === '未承認') {
-                         foundIndices.push(r);
-                     }
-                 }
-             }
+            // Classify check requirement
+            for (const r of batch) {
+                if (returnedSet.has(r)) {
+                    // Already confirmed as "Returned", automatic keep
+                    foundIndices.push(r);
+                } else {
+                    // Need to check status (it's a "My Record" candidate)
+                    subBatchToCheck.push(r);
+                }
+                if (foundIndices.length >= requiredCount) break;
+            }
 
-             i += BATCH_SIZE;
+            if (foundIndices.length >= requiredCount) break;
+
+            // Fetch statuses for subBatchToCheck
+            if (subBatchToCheck.length > 0) {
+                const ranges = subBatchToCheck.map(r => `L${r}`);
+                const rangeList = sheet.getRangeList(ranges);
+                const rangesObj = rangeList.getRanges();
+
+                for (let k = 0; k < rangesObj.length; k++) {
+                    const r = subBatchToCheck[k];
+                    const val = (rangesObj[k].getValue() || '未承認').toString();
+                    const status = val.replace(/[\s\u3000]+/g, '');
+
+                    if (status === '未承認') {
+                        foundIndices.push(r);
+                    }
+                }
+            }
+
+            i += BATCH_SIZE;
         }
 
         // 5. Pagination & Fetch Data
