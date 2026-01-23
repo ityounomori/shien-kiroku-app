@@ -1103,9 +1103,9 @@ function getIncidentsByOfficeV2(officeName) {
 }
 
 /**
- * [v55] Optimized Pending List Fetcher
- * Server-side filtering & Pagination for "Pending" tab.
- * Mirrors the logic previously done in client-side 'loadIncidentPendingList'.
+ * [v56] Optimized Pending List Fetcher (TextFinder Version)
+ * Uses TextFinder to locate "Pending" or "Returned" items without scanning the whole column.
+ * Much faster for large datasets with few pending items.
  */
 function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami) {
     const debugLogs = [];
@@ -1126,7 +1126,6 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         const files = getFilesByOffice(officeName);
         const ss = SpreadsheetApp.openById(files.incidentFileId);
 
-        // [Fix] Safe Sheet Name Resolution
         const sheetName = (typeof SHEET_NAMES !== 'undefined' && SHEET_NAMES.INCIDENT_SHEET) ? SHEET_NAMES.INCIDENT_SHEET : 'incidents';
         const sheet = ss.getSheetByName(sheetName);
 
@@ -1135,89 +1134,85 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
             return { data: [], hasMore: false, debugLogs: debugLogs };
         }
 
-        // [v55.3 Performance] Column-Based Scan (Index & Fetch)
-        // Scans ONLY Status (Col 12) and Recorder (Col 4) columns first.
-        // Much faster than fetching all columns for 100k+ rows.
-
         const lastRow = sheet.getLastRow();
         if (lastRow < 2) return { data: [], hasMore: false, debugLogs: debugLogs };
 
-        // 1. Fetch Index Columns (Status & Recorder)
-        // Range: Row 2 to LastRow
-        const numRows = lastRow - 1;
-        const statusValues = sheet.getRange(2, 12, numRows, 1).getValues(); // Col L
-        const recorderValues = sheet.getRange(2, 4, numRows, 1).getValues(); // Col D
+        // --- TextFinder Optimization ---
+        // Search specific statuses in Column L (Index 12)
+        // Manager: Needs to see '差戻し' (Returned) usually? 
+        // * Actually, looking at previous logic:
+        //   Manager: "Return" only.
+        //   Staff: "Unapproved" AND "Return" (My own).
 
-        const norm = s => (String(s || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
-        const myNameNorm = norm(whoami.name);
         const isManager = (whoami.role === 'manager');
+        const myNameNorm = (String(whoami.name || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
 
-        const matchedIndices = []; // Array of { rowIndex, id (we don't have ID yet, wait) } -> Just row indices
-        // Actually we need ID for checking? No, ID is Col 1. We verify ID existence later or assume valid if Status exists.
-        // Let's just track row indices.
+        // 1. Find relevant rows using TextFinder
+        // We search for multiple terms to be safe: '未承認', '差戻し', '差戻', '差し戻し'
+        // Implementation: Search for each term and merge results.
 
-        log(`[Index Scan] Start. Rows: ${numRows}, Manager: ${isManager}, User: ${whoami.name}`);
+        const targetStatuses = [];
+        if (!isManager) targetStatuses.push('未承認'); // Staff needs to see Unapproved
+        targetStatuses.push('差戻し', '差戻', '差し戻し'); // Both see Returned
 
-        // 2. In-Memory Filter (Reverse: Newest First)
-        for (let i = numRows - 1; i >= 0; i--) {
-            // Check Offset/Limit
-            if (matchedIndices.length >= (offset + limit + 10)) { // Fetch a bit more to ensure enough for pagination
-                // We fetch a few more than (offset + limit) to correctly determine 'hasMore'
-                // without needing to scan the entire sheet if we hit the limit early.
-                // The exact number (e.g., +10) is a heuristic to balance performance and accuracy.
-                break;
-            }
+        let matchedRowSet = new Set();
 
-            const rawStatus = (statusValues[i][0] || '未承認').toString();
-            const status = rawStatus.replace(/[\s\u3000]+/g, '');
-            const recorder = recorderValues[i][0];
+        // Search in Column L (12)
+        const statusRange = sheet.getRange("L:L");
 
-            let isMatch = false;
+        targetStatuses.forEach(term => {
+            const tempFound = statusRange.createTextFinder(term).matchEntireCell(true).findAll();
+            tempFound.forEach(cell => {
+                const r = cell.getRow();
+                if (r >= 2) matchedRowSet.add(r);
+            });
+        });
 
-            if (isManager) {
-                // Manager: sees "Return" items
-                if (status === '差戻し' || status === '差戻' || status === '差し戻し') {
-                    isMatch = true;
+        // Convert to Array and Sort Descending (Newest First)
+        let matchedIndices = Array.from(matchedRowSet).sort((a, b) => b - a);
+
+        log(`[TextFinder] Found ${matchedIndices.length} matches.`);
+
+        // 2. Filter by Recorder (if Staff)
+        // If Staff, we check Recorder (Col D / Index 4) matches 'whoami.name'
+        // Optimization: Fetch Recorder values for these rows ONLY.
+
+        if (!isManager && matchedIndices.length > 0) {
+            // Batch fetch recorder names for the found rows
+            // To be efficient, we can't just call getRange(row, 4) 100 times.
+            // But if matches are sparse, individual calls might be okay.
+            // Better: create a RangeList.
+
+            const recorderRanges = matchedIndices.map(r => `D${r}`);
+            const recorderValues = sheet.getRangeList(recorderRanges).getRanges().map(r => r.getValue());
+
+            const filteredIndices = [];
+            for (let i = 0; i < matchedIndices.length; i++) {
+                const rName = (String(recorderValues[i] || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
+                if (rName === myNameNorm) {
+                    filteredIndices.push(matchedIndices[i]); // Keep if matches user
                 }
-            } else {
-                // Staff: sees Own "Pending" or "Return"
-                const rNorm = norm(recorder);
-                if (rNorm === myNameNorm) {
-                    if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
-                        isMatch = true;
-                    }
-                }
             }
-
-            if (isMatch) {
-                matchedIndices.push(i + 2); // Convert to 1-based Row Index
-            }
+            matchedIndices = filteredIndices;
+            log(`[TextFinder] Filtered to ${matchedIndices.length} matches (User specific).`);
         }
 
-        log(`[Index Scan] Done. Matches found: ${matchedIndices.length}`);
-
-        // 3. Fetch Full Data for Matches
-        // Apply Offset & Limit
+        // 3. Pagination
+        const hasMore = matchedIndices.length > (offset + limit);
         const pageIndices = matchedIndices.slice(offset, offset + limit);
-        const results = [];
 
+        // 4. Fetch Full Data
+        const results = [];
         if (pageIndices.length > 0) {
-            // Construct A1 Notations (e.g., "A100:P100")
             const ranges = pageIndices.map(r => `A${r}:P${r}`);
             const rangeList = sheet.getRangeList(ranges);
             const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
 
-            // Map to Objects
             for (let i = 0; i < rangeValues.length; i++) {
                 const row = rangeValues[i];
                 const rowIndex = pageIndices[i];
 
-                // ID Check
                 if (!row[0]) continue;
-
-                // Re-normalize status for display if needed, but we trust the index
-                const rawStatus = (row[11] || '未承認').toString();
-                // We use the raw value from the full fetch for consistency
 
                 results.push({
                     rowId: rowIndex,
@@ -1233,7 +1228,7 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
                     cause: row[8],
                     response: row[9],
                     prevention: row[10],
-                    status: rawStatus, // Use the raw status from row
+                    status: (row[11] || '').toString(),
                     approver: row[12],
                     approvedAt: row[13] ? Utilities.formatDate(new Date(row[13]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
                     returnReason: row[14],
@@ -1241,8 +1236,6 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
                 });
             }
         }
-
-        const hasMore = matchedIndices.length > (offset + limit);
 
         log(`[Fetch] Done. Returning ${results.length} items.`);
 
@@ -2001,8 +1994,8 @@ function getIncidentCsvData(officeName, filters) {
 
 
 /**
- * [v55.6 Fix] Batched Approval List Fetcher with Pagination
- * Solves timeout issue by fetching data in chunks (50 items) with a limit of 200.
+ * [v56] Optimized Approval List Fetcher (TextFinder Version)
+ * Uses TextFinder to locate "Unapproved" items efficiently.
  * Supports "Load More" via lastRowId.
  */
 function getApprovalIncidentsBatched(officeName, lastRowId = null) {
@@ -2020,81 +2013,70 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
         const lastRow = sheet.getLastRow();
         if (lastRow < 2) return { data: [] };
 
-        const numRows = lastRow - 1;
-        const statusValues = sheet.getRange(2, 12, numRows, 1).getValues(); // Col L
+        // 1. Find all "Pending" (Unapproved) items via TextFinder
+        // Search "未承認" in Column L
+        const statusRange = sheet.getRange("L:L");
+        const found = statusRange.createTextFinder('未承認').matchEntireCell(true).findAll();
 
-        // 1. Scan All & Identify Indices
-        let matchedIndices = [];
-        for (let i = 0; i < numRows; i++) {
-            const rawStatus = (statusValues[i][0] || '未承認').toString();
-            if (rawStatus.trim() === '未承認') {
-                matchedIndices.push(i + 2);
-            }
-        }
+        let matchIndices = found
+            .map(c => c.getRow())
+            .filter(r => r >= 2)
+            .sort((a, b) => b - a); // Descending (Newest first)
 
         // 2. Pagination Logic
-        // We want to traverse from Newest (Highest Row) -> Oldest (Lowest Row).
-        // matchedIndices is Ascending (2, 5, 10...).
-
-        // If lastRowId is provided, we only want rows SMALLER than lastRowId.
+        // If lastRowId is provided, filters indices SMALLER than lastRowId
         if (lastRowId) {
             const targetId = parseInt(lastRowId, 10);
-            matchedIndices = matchedIndices.filter(idx => idx < targetId);
+            matchIndices = matchIndices.filter(idx => idx < targetId);
         }
 
-        const totalRemaining = matchedIndices.length;
-        const LIMIT = 200;
+        const totalRemaining = matchIndices.length;
+        const LIMIT = 50; // Batch size per Load
 
-        // Take the LAST 'LIMIT' items (which are the newest among the remaining)
-        // Example: [1, 2, ... 1000]. Slice(-200) -> [801...1000].
-        // Then reverse to process: [1000, 999... 801].
-        let targetIndices = matchedIndices.slice(-LIMIT).reverse();
-
-        const hasMore = (totalRemaining > LIMIT);
+        // Take top LIMIT items
+        const targetIndices = matchIndices.slice(0, LIMIT);
+        const hasMore = totalRemaining > LIMIT;
 
         // 3. Batched Fetch
         const results = [];
-        const BATCH_SIZE = 50;
 
         if (targetIndices.length > 0) {
-            for (let i = 0; i < targetIndices.length; i += BATCH_SIZE) {
-                const batchIndices = targetIndices.slice(i, i + BATCH_SIZE);
-                const ranges = batchIndices.map(r => `A${r}:P${r}`);
-                const rangeList = sheet.getRangeList(ranges);
-                const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
+            // Using RangeList for sparse rows
+            const ranges = targetIndices.map(r => `A${r}:P${r}`);
+            const rangeList = sheet.getRangeList(ranges);
+            const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
 
-                for (let j = 0; j < rangeValues.length; j++) {
-                    const row = rangeValues[j];
-                    const rowIndex = batchIndices[j];
+            for (let i = 0; i < rangeValues.length; i++) {
+                const row = rangeValues[i];
+                const rowIndex = targetIndices[i];
 
-                    if (!row[0]) continue;
+                if (!row[0]) continue;
 
-                    results.push({
-                        rowId: rowIndex,
-                        id: String(row[0]),
-                        createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-                        occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-                        recorder: String(row[3]),
-                        user: String(row[4]),
-                        userName: String(row[4]),
-                        type: String(row[5]),
-                        place: String(row[6]),
-                        situation: String(row[7]),
-                        cause: String(row[8]),
-                        response: String(row[9]),
-                        prevention: String(row[10]),
-                        status: (row[11] || '未承認').toString(),
-                        approver: String(row[12]),
-                        approvedAt: row[13] ? Utilities.formatDate(new Date(row[13]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
-                        returnReason: String(row[14]),
-                        returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
-                    });
-                }
+                results.push({
+                    rowId: rowIndex,
+                    id: String(row[0]),
+                    createdAt: row[1] ? Utilities.formatDate(new Date(row[1]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    occurDate: row[2] ? Utilities.formatDate(new Date(row[2]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    recorder: String(row[3]),
+                    user: String(row[4]),
+                    userName: String(row[4]),
+                    type: String(row[5]),
+                    place: String(row[6]),
+                    situation: String(row[7]),
+                    cause: String(row[8]),
+                    response: String(row[9]),
+                    prevention: String(row[10]),
+                    status: (row[11] || '未承認').toString(),
+                    approver: String(row[12]),
+                    approvedAt: row[13] ? Utilities.formatDate(new Date(row[13]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : '',
+                    returnReason: String(row[14]),
+                    returnedAt: row[15] ? Utilities.formatDate(new Date(row[15]), Session.getScriptTimeZone(), "yyyy/MM/dd HH:mm") : ''
+                });
             }
         }
 
-        results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        console.log(`[getApprovalIncidentsBatched] Scanned: ${numRows}, Rem: ${totalRemaining}, Ret: ${results.length}, HasMore: ${hasMore}`);
+        // No need to resort results as we fetched in descending order of Row Index (approx. Date order)
+        console.log(`[getApprovalIncidentsBatched] Found: ${matchIndices.length}, Ret: ${results.length}, HasMore: ${hasMore}`);
 
         return {
             data: results,
