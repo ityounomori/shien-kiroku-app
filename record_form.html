@@ -5312,6 +5312,8 @@
         async function viewIncidentDetail(itemOrRowId) {
             console.log('[Debug] viewIncidentDetail called with:', itemOrRowId, 'Type:', typeof itemOrRowId);
             const w = getWhoami();
+            if (!w) return; // [Fix] Prevent crash if session expired
+
 
             // [Fix] Show loading ONLY if we need to fetch from server
             const needsFetch = (typeof itemOrRowId === 'string' || typeof itemOrRowId === 'number');
