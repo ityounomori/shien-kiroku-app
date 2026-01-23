@@ -1399,6 +1399,14 @@
                         <section id="incidentPendingSection" class="hidden flex flex-col w-full flex-1 h-full min-h-0">
                             <!-- [Fix] Added pb-28 for FAB clearance matching History section -->
                             <div class="w-full h-full flex flex-col p-4 pb-28 overflow-y-auto custom-scrollbar">
+                                <!-- Header -->
+                                <div class="flex justify-between items-center mb-4 px-2">
+                                    <h2 class="text-lg font-bold text-gray-800 flex items-center gap-2">
+                                        対応待ちリスト
+                                        <span id="inc-response-count"
+                                            class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-white text-indigo-600 border border-indigo-100 shadow-sm">0件</span>
+                                    </h2>
+                                </div>
                                 <div id="incident-pending-list" class="space-y-4 pb-4"></div>
                                 <div id="incident-pending-load-more" class="mt-4"></div>
                             </div>
@@ -5086,6 +5094,16 @@
                                 loadMoreContainer.classList.remove('hidden');
                             } else {
                                 loadMoreContainer.classList.add('hidden');
+                            }
+                        }
+
+                        // Update Header Badge
+                        const badge = document.getElementById('inc-response-count');
+                        if (badge) {
+                            const listEl = document.getElementById('incident-pending-list');
+                            if (listEl) {
+                                const currentCount = listEl.childElementCount;
+                                badge.textContent = `${currentCount}${hasMore ? '+' : ''}件`;
                             }
                         }
                     } catch (e) {
