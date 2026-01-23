@@ -3059,6 +3059,12 @@
             document.getElementById('header-controls-list')?.classList.toggle('hidden', !isList);
             document.getElementById('header-tabs-list')?.classList.toggle('hidden', !isList);
 
+            // [Incident View] Hide User Dropdown on PC
+            const userDropdownPC = document.getElementById('header-user-pc-container');
+            if (userDropdownPC) {
+                userDropdownPC.classList.toggle('hidden', viewName === 'incident');
+            }
+
             // ★修正: 初期化完了済みの場合のみFABを表示
             if (APP_STATE.isInitialized) {
                 updateFabState();
