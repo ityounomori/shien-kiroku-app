@@ -15,19 +15,19 @@ var CoreLib = {
      */
     Config: {
         /**
-         * マスタスプレッドシートのIDを設定する
+         * マスタスプレッドシートのIDを設定する (実行時注入)
          * @param {string} id スプレッドシートID
          */
         setMasterFileId: function (id) {
-            PropertiesService.getScriptProperties().setProperty('MASTER_FILE_ID', id);
+            injectMasterFileId(id);
         },
 
         /**
-         * インシデント記録用スプレッドシートのIDを設定する
+         * インシデント記録用スプレッドシートのIDを設定する（実行時注入）
          * @param {string} id スプレッドシートID
          */
         setIncidentFileId: function (id) {
-            PropertiesService.getScriptProperties().setProperty('INCIDENT_FILE_ID', id);
+            injectIncidentFileId(id);
         }
     }
 };

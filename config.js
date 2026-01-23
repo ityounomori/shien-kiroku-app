@@ -67,8 +67,18 @@ function getLogFileId() {
     return SpreadsheetApp.getActiveSpreadsheet().getId();
 }
 
+// ランタイム注入用の変数 (Incident ID)
+let _runtimeIncidentFileId = null;
+
+function injectIncidentFileId(id) {
+    _runtimeIncidentFileId = id;
+}
+
 function getIncidentFileId() {
-    // Falls back to master if not found
+    // 1. ランタイム注入を最優先
+    if (_runtimeIncidentFileId) return _runtimeIncidentFileId;
+
+    // 2. プロパティからの取得
     const id = PropertiesService.getScriptProperties().getProperty('INCIDENT_FILE_ID');
     return id || getMasterFileId();
 }
