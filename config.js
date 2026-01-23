@@ -36,17 +36,30 @@ const INCIDENT_COLS = [
 // 2. ファイルID取得
 // =========================================================================================
 
+// ランタイム注入用の変数 (実行単位でリセットされるため並行処理でも安全)
+let _runtimeMasterFileId = null;
+
+/**
+ * 外部からマスタファイルIDを注入する (ライブラリ利用時用)
+ * @param {string} id 
+ */
+function injectMasterFileId(id) {
+    _runtimeMasterFileId = id;
+}
+
 function getMasterFileId() {
-    // 1. プロパティからの取得を優先 (ライブラリ利用時/分離後)
+    // 1. ランタイム注入を最優先 (App側で指定された場合)
+    if (_runtimeMasterFileId) return _runtimeMasterFileId;
+
+    // 2. プロパティからの取得 (保存された設定がある場合)
     const propId = PropertiesService.getScriptProperties().getProperty('MASTER_FILE_ID');
     if (propId) return propId;
 
-    // 2. アクティブなスプレッドシートIDを取得 (Bound Script時)
+    // 3. アクティブなスプレッドシートIDを取得 (Bound Script時)
     try {
         return SpreadsheetApp.getActiveSpreadsheet().getId();
     } catch (e) {
-        // Standalone Scriptとして実行され、かつプロパティ未設定の場合
-        throw new Error('Master File ID configuration missing. Please set "MASTER_FILE_ID" in Script Properties.');
+        throw new Error('Master File ID configuration missing. Please inject ID via Config or set "MASTER_FILE_ID" property.');
     }
 }
 
