@@ -1549,11 +1549,10 @@
                                             <span id="inc-pending-count"
                                                 class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">0件</span>
                                         </div>
-                                        <button id="btn-bulk-approve" onclick="approveSelected()" disabled
-                                            class="text-[10px] font-bold bg-white border border-indigo-200 text-indigo-600 px-2 py-1 rounded-md hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition">一括承認</button>
                                     </div>
                                     <div class="flex-1 overflow-y-auto custom-scrollbar">
-                                        <div id="incidentApprovalList" class="divide-y divide-gray-100"></div>
+                                        <div id="incidentApprovalList"
+                                            class="grid grid-cols-1 md:grid-cols-2 gap-4 p-4"></div>
                                         <div id="approval-load-more-container" class="py-4 text-center"></div>
                                     </div>
                                 </div>
@@ -5618,7 +5617,7 @@
             // Initialize State
             if (!isLoadMore) {
                 APP_STATE.approvalMinRowId = null;
-                if (list) list.innerHTML = `<div class="flex justify-center items-center py-10 w-full">${getLoaderHtml()}</div>`;
+                if (list) list.innerHTML = `<div class="col-span-full flex justify-center items-center py-10 w-full">${getLoaderHtml()}</div>`;
                 if (btnContainer) btnContainer.innerHTML = '';
             } else {
                 // Set button loading state
@@ -5636,41 +5635,16 @@
 
                 // If it was the initial load and no data found
                 if (!isLoadMore && data.length === 0) {
-                    list.innerHTML = '<p class="text-center text-gray-400 py-10 text-xs">承認待ちの記録はありません</p>';
+                    list.innerHTML = '<p class="col-span-full text-center text-gray-400 py-10 text-xs">承認待ちの記録はありません</p>';
                     if (btnContainer) btnContainer.innerHTML = '';
                     return;
                 }
 
-                // Append Data
+                // Append Data (Using Cards)
                 data.forEach(r => {
-                    const row = document.createElement('div');
-                    row.className = 'p-4 border-b hover:bg-gray-50 cursor-pointer flex justify-between items-center';
-
-                    // Unified Card Layout
-                    row.innerHTML = `
-                        <div class="flex-1 min-w-0">
-                            <!-- Row 1: Status | Date -->
-                            <div class="flex items-center gap-2 mb-1">
-                                <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">未承認</span>
-                                <div class="text-xs text-gray-400 font-bold">${(r.occurDate || '').toString().replace('T', ' ')}</div>
-                            </div>
-                            <!-- Row 2: Target | Category -->
-                            <div class="text-sm font-bold text-gray-800 mb-1">
-                                ${r.userName} / ${r.type}
-                            </div>
-                            <!-- Row 3: Recorder -->
-                            <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${r.recorder}</div>
-                             <!-- Row 4: Content -->
-                            <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${r.situation || ''}</p>
-                        </div>
-                        <div class="flex gap-2 shrink-0 ml-2">
-                             <i class="fas fa-chevron-right text-gray-300"></i>
-                        </div>
-                    `;
-                    row.onclick = () => {
-                        setTimeout(() => viewIncidentDetail(r), 0);
-                    };
-                    list.appendChild(row);
+                    const card = createIncidentHistoryCard(r);
+                    card.classList.add('h-full');
+                    list.appendChild(card);
                 });
 
                 // Update Min RowId for next page (The last item is the oldest in this sorted batch)
