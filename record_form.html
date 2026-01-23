@@ -6407,8 +6407,14 @@
             // 利用者プルダウン生成
             const uSel = document.getElementById('inc-simple-user');
             uSel.innerHTML = '<option value="" disabled selected>利用者を選択</option>';
+            // [Debug] Log users state
+            console.log('[Debug] openIncidentSimpleModal users:', APP_STATE.users ? APP_STATE.users.length : 'undefined');
             if (APP_STATE.users) {
-                APP_STATE.users.forEach(u => uSel.add(new Option(u.userName, u.userName)));
+                APP_STATE.users.forEach(u => {
+                    // Robust check for object structure
+                    const name = (u && typeof u === 'object' && u.userName) ? u.userName : u;
+                    if (name) uSel.add(new Option(name, name));
+                });
             }
             // 外部利用者オプション
             const ext = document.createElement('option');

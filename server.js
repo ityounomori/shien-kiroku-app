@@ -171,10 +171,22 @@ function getStaffListByOffice(officeName) {
 /**
  * 指定された事業所の利用者リストを取得 (Direct)
  */
+/**
+ * 指定された事業所の利用者リストを取得 (Direct)
+ */
 function getUserListDirectByOffice(officeName) {
+    console.log(`[Debug] getUserListDirectByOffice called for: ${officeName}`);
     const ss = SpreadsheetApp.openById(getMasterFileId());
-    const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_USER_LIST);
-    if (!sheet || sheet.getLastRow() < 2) return [];
+
+    // [Debug] Log Sheet Name for verification
+    const sheetName = SHEET_NAMES.MASTER_USER_LIST;
+    console.log(`[Debug] Using Sheet Name: ${sheetName}`);
+
+    const sheet = ss.getSheetByName(sheetName);
+    if (!sheet || sheet.getLastRow() < 2) {
+        console.warn(`[Warning] Sheet '${sheetName}' not found or empty`);
+        return [];
+    }
 
     const data = sheet.getDataRange().getValues();
     // A: Name, B: Office
@@ -186,6 +198,7 @@ function getUserListDirectByOffice(officeName) {
             users.push({ userName: name });
         }
     }
+    console.log(`[Debug] Users found: ${users.length}`);
     return users;
 }
 
