@@ -918,6 +918,7 @@ function updateIncidentByOffice(officeName, rowId, data, whoami) {
 
 /**
  * IDによる単一インシデントの取得
+ * [Optimization] Use direct range access instead of getDataRange for O(1) performance
  */
 function getIncidentByIdV3(officeName, rowId) {
     try {
@@ -931,17 +932,23 @@ function getIncidentByIdV3(officeName, rowId) {
             return { _error: 'SheetNotFound', sheetName: sheetName, fileId: files.incidentFileId };
         }
 
-        const data = sheet.getDataRange().getValues();
-        console.log(`[Debug] Data length: ${data.length}, Requesting Index: ${rowId - 1}`);
-
-        const r = data[rowId - 1]; // rowId is 1-indexed
-
-        if (!r) {
-            console.log(`[Debug] Row not found or undefined at index ${rowId - 1}`);
-            return { _error: 'RowNotFound', dataLength: data.length, requestIndex: rowId - 1, rowId: rowId };
+        // [Optimized] Direct Row Access
+        const lastRow = sheet.getLastRow();
+        if (rowId > lastRow || rowId < 2) {
+            console.log(`[Debug] RowId ${rowId} is out of bounds (LastRow: ${lastRow})`);
+            return { _error: 'RowNotFound', rowId: rowId, lastRow: lastRow };
         }
 
-        console.log(`[Debug] Row found. r[0]=${r[0]}, r[2]=${r[2]}`);
+        // Fetch only the specific row (16 columns)
+        // 1-based index is rowId
+        const r = sheet.getRange(rowId, 1, 1, 16).getValues()[0];
+
+        if (!r || !r[0]) {
+            console.log(`[Debug] Row empty or ID missing at row ${rowId}`);
+            return { _error: 'RowEmpty', rowId: rowId };
+        }
+
+        console.log(`[Debug] Row found. ID=${r[0]}, Created=${r[1]}`);
 
         let formattedOccur = "";
         try {
@@ -949,21 +956,17 @@ function getIncidentByIdV3(officeName, rowId) {
             if (!isNaN(d.getTime())) {
                 formattedOccur = Utilities.formatDate(d, Session.getScriptTimeZone(), "yyyy-MM-dd HH:mm");
             } else {
-                console.log(`[Debug] Invalid Date for occurDate: ${r[2]}`);
                 formattedOccur = String(r[2]);
             }
         } catch (e) {
-            console.log(`[Debug] Date formatting error: ${e.message}`);
             formattedOccur = "";
         }
-
-        console.log(`[Debug] Returning object...`);
 
         return {
             _v: 3,
             rowId: rowId,
             id: String(r[0]),
-            createdAt: r[1] ? String(r[1]) : "", // Avoid Object types if possible for debug
+            createdAt: r[1] ? String(r[1]) : "",
             occurDate: formattedOccur,
             recorder: r[3],
             user: r[4],
