@@ -37,7 +37,17 @@ const INCIDENT_COLS = [
 // =========================================================================================
 
 function getMasterFileId() {
-    return SpreadsheetApp.getActiveSpreadsheet().getId();
+    // 1. プロパティからの取得を優先 (ライブラリ利用時/分離後)
+    const propId = PropertiesService.getScriptProperties().getProperty('MASTER_FILE_ID');
+    if (propId) return propId;
+
+    // 2. アクティブなスプレッドシートIDを取得 (Bound Script時)
+    try {
+        return SpreadsheetApp.getActiveSpreadsheet().getId();
+    } catch (e) {
+        // Standalone Scriptとして実行され、かつプロパティ未設定の場合
+        throw new Error('Master File ID configuration missing. Please set "MASTER_FILE_ID" in Script Properties.');
+    }
 }
 
 function getLogFileId() {
