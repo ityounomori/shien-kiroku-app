@@ -1902,10 +1902,11 @@ function getIncidentCsvData(officeName, filters) {
 
 
 /**
- * [v55.5 Fix] Batched Approval List Fetcher
- * Solves timeout issue by fetching data in chunks (50 items).
+ * [v55.6 Fix] Batched Approval List Fetcher with Pagination
+ * Solves timeout issue by fetching data in chunks (50 items) with a limit of 200.
+ * Supports "Load More" via lastRowId.
  */
-function getApprovalIncidentsBatched(officeName) {
+function getApprovalIncidentsBatched(officeName, lastRowId = null) {
     try {
         const files = getFilesByOffice(officeName);
         const ss = SpreadsheetApp.openById(files.incidentFileId);
@@ -1923,7 +1924,8 @@ function getApprovalIncidentsBatched(officeName) {
         const numRows = lastRow - 1;
         const statusValues = sheet.getRange(2, 12, numRows, 1).getValues(); // Col L
 
-        const matchedIndices = [];
+        // 1. Scan All & Identify Indices
+        let matchedIndices = [];
         for (let i = 0; i < numRows; i++) {
             const rawStatus = (statusValues[i][0] || '未承認').toString();
             if (rawStatus.trim() === '未承認') {
@@ -1931,12 +1933,33 @@ function getApprovalIncidentsBatched(officeName) {
             }
         }
 
+        // 2. Pagination Logic
+        // We want to traverse from Newest (Highest Row) -> Oldest (Lowest Row).
+        // matchedIndices is Ascending (2, 5, 10...).
+
+        // If lastRowId is provided, we only want rows SMALLER than lastRowId.
+        if (lastRowId) {
+            const targetId = parseInt(lastRowId, 10);
+            matchedIndices = matchedIndices.filter(idx => idx < targetId);
+        }
+
+        const totalRemaining = matchedIndices.length;
+        const LIMIT = 200;
+
+        // Take the LAST 'LIMIT' items (which are the newest among the remaining)
+        // Example: [1, 2, ... 1000]. Slice(-200) -> [801...1000].
+        // Then reverse to process: [1000, 999... 801].
+        let targetIndices = matchedIndices.slice(-LIMIT).reverse();
+
+        const hasMore = (totalRemaining > LIMIT);
+
+        // 3. Batched Fetch
         const results = [];
         const BATCH_SIZE = 50;
 
-        if (matchedIndices.length > 0) {
-            for (let i = 0; i < matchedIndices.length; i += BATCH_SIZE) {
-                const batchIndices = matchedIndices.slice(i, i + BATCH_SIZE);
+        if (targetIndices.length > 0) {
+            for (let i = 0; i < targetIndices.length; i += BATCH_SIZE) {
+                const batchIndices = targetIndices.slice(i, i + BATCH_SIZE);
                 const ranges = batchIndices.map(r => `A${r}:P${r}`);
                 const rangeList = sheet.getRangeList(ranges);
                 const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
@@ -1972,8 +1995,13 @@ function getApprovalIncidentsBatched(officeName) {
         }
 
         results.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        console.log(`[getApprovalIncidentsBatched] Scanned: ${numRows}, Found: ${results.length}`);
-        return { data: results };
+        console.log(`[getApprovalIncidentsBatched] Scanned: ${numRows}, Rem: ${totalRemaining}, Ret: ${results.length}, HasMore: ${hasMore}`);
+
+        return {
+            data: results,
+            hasMore: hasMore,
+            lastId: (results.length > 0) ? results[results.length - 1].rowId : 0
+        };
 
     } catch (e) {
         console.error('getApprovalIncidentsBatched Error:', e);

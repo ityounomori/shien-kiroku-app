@@ -1552,8 +1552,9 @@
                                         <button id="btn-bulk-approve" onclick="approveSelected()" disabled
                                             class="text-[10px] font-bold bg-white border border-indigo-200 text-indigo-600 px-2 py-1 rounded-md hover:bg-indigo-50 disabled:opacity-50 disabled:cursor-not-allowed transition">一括承認</button>
                                     </div>
-                                    <div id="incidentApprovalList"
-                                        class="flex-1 overflow-y-auto custom-scrollbar divide-y divide-gray-100">
+                                    <div class="flex-1 overflow-y-auto custom-scrollbar">
+                                        <div id="incidentApprovalList" class="divide-y divide-gray-100"></div>
+                                        <div id="approval-load-more-container" class="py-4 text-center"></div>
                                     </div>
                                 </div>
 
@@ -5608,34 +5609,47 @@
             }).verifyPinOnly(w.name, pin);
         }
 
-        function loadIncidentApprovalList() {
+        function loadIncidentApprovalList(isLoadMore = false) {
             const w = getWhoami();
             if (!w) return;
             const list = document.getElementById('incidentApprovalList');
+            const btnContainer = document.getElementById('approval-load-more-container');
 
-            if (list) list.innerHTML = `<div class="flex justify-center items-center py-10 w-full">${getLoaderHtml()}</div>`;
+            // Initialize State
+            if (!isLoadMore) {
+                APP_STATE.approvalMinRowId = null;
+                if (list) list.innerHTML = `<div class="flex justify-center items-center py-10 w-full">${getLoaderHtml()}</div>`;
+                if (btnContainer) btnContainer.innerHTML = '';
+            } else {
+                // Set button loading state
+                const loadBtn = document.getElementById('btn-approval-load-more');
+                if (loadBtn) setButtonLoading(loadBtn, true);
+            }
+
+            const lastRowId = isLoadMore ? APP_STATE.approvalMinRowId : null;
 
             google.script.run.withSuccessHandler(response => {
-                const data = (response && response.data) ? response.data : (Array.isArray(response) ? response : []);
+                const data = (response && response.data) ? response.data : [];
+                const hasMore = response.hasMore || false;
 
-                if (list) list.innerHTML = '';
-                const pending = (data || []).filter(r => r.status === '未承認');
+                if (!isLoadMore && list) list.innerHTML = '';
 
-                // バッジ更新
-                const badge = document.getElementById('inc-pending-count');
-                if (badge) badge.textContent = `${pending.length}件`;
-
-                if (pending.length === 0) {
+                // If it was the initial load and no data found
+                if (!isLoadMore && data.length === 0) {
                     list.innerHTML = '<p class="text-center text-gray-400 py-10 text-xs">承認待ちの記録はありません</p>';
+                    if (btnContainer) btnContainer.innerHTML = '';
                     return;
                 }
-                pending.forEach(r => {
+
+                // Append Data
+                data.forEach(r => {
                     const row = document.createElement('div');
                     row.className = 'p-4 border-b hover:bg-gray-50 cursor-pointer flex justify-between items-center';
+
                     // Unified Card Layout
                     row.innerHTML = `
                         <div class="flex-1 min-w-0">
-                            <!-- Row 1: Status | Date (Status is Pending implicit) -->
+                            <!-- Row 1: Status | Date -->
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-0.5 rounded-full">未承認</span>
                                 <div class="text-xs text-gray-400 font-bold">${(r.occurDate || '').toString().replace('T', ' ')}</div>
@@ -5646,7 +5660,7 @@
                             </div>
                             <!-- Row 3: Recorder -->
                             <div class="text-xs text-gray-500 font-bold mb-1">記録者: ${r.recorder}</div>
-                             <!-- Row 4: Content (Situation) -->
+                             <!-- Row 4: Content -->
                             <p class="text-xs text-gray-500 line-clamp-2 bg-gray-50 p-2 rounded">${r.situation || ''}</p>
                         </div>
                         <div class="flex gap-2 shrink-0 ml-2">
@@ -5658,7 +5672,35 @@
                     };
                     list.appendChild(row);
                 });
-            }).getApprovalIncidentsBatched(w.officeSelected);
+
+                // Update Min RowId for next page (The last item is the oldest in this sorted batch)
+                if (data.length > 0) {
+                    const oldestItem = data[data.length - 1]; // Last item
+                    APP_STATE.approvalMinRowId = oldestItem.rowId;
+                }
+
+                // Handle Load More Button
+                if (btnContainer) {
+                    if (hasMore) {
+                        btnContainer.innerHTML = getLoadMoreButtonHtml('btn-approval-load-more');
+                        document.getElementById('btn-approval-load-more').onclick = () => loadIncidentApprovalList(true);
+                    } else {
+                        btnContainer.innerHTML = '';
+                    }
+                }
+
+                // Count Badge (Only accurate for first page, or just show '+' if hasMore?)
+                // Simple count based on fetched so far might be confusing. 
+                // Let's just update if it's initial load, or accumulate? 
+                // For now, let's leave the badge static or update with "200+" logic if needed. 
+                // The current logic only counts fetched.
+                const badge = document.getElementById('inc-pending-count');
+                if (badge) {
+                    const currentCount = list.childElementCount;
+                    badge.textContent = `${currentCount}${hasMore ? '+' : ''}件`;
+                }
+
+            }).getApprovalIncidentsBatched(w.officeSelected, lastRowId);
         }
 
 
