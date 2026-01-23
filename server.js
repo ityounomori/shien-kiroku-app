@@ -1,9 +1,9 @@
-// server.gs - v35 (ByOffice Unified & Archiving)
+﻿// server.gs - v35 (ByOffice Unified & Archiving)
 const SCRIPT_NAME = '支援記録システム';
 
 function doGet(e) {
     return HtmlService.createHtmlOutputFromFile('record_form')
-        .setTitle('支援記録・事故報告 統合システム')
+        .setTitle('支援記録事故報告 統合システム')
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
         .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no');
 }
@@ -311,7 +311,6 @@ function verifyUserByPin(officeSelected, staffName, pin) {
                 }
             }
         }
-
         // ループ終了しても見つからない -> 認証失敗
         logEvent({
             executor: staffName,
@@ -360,7 +359,7 @@ function getUserListByOfficeAuto() {
  * @param {boolean} includeArchive trueならアーカイブも検索（重くなる可能性あり）
             */
 /**
- * 支援記録を取得する (バッチ処理・自動アーカイブ対応)
+ * 支援記録を取得する (バッチ処理自動アーカイブ対応)
  * @param {string} officeName 事業所名
             * @param {string} userName 対象利用者名
             * @param {Object} options {startDate, endDate, limit, continuationToken}
@@ -549,7 +548,7 @@ function transformRowToRecord(row, rowNumber, sheetName) {
         '日付': dateStr,
         '項目': item,
         '詳細': detailDisplay,
-        '経過内容・様子': String(row[COL_INDEX.CONTENT - 1] || ''),
+        '経過内容様子': String(row[COL_INDEX.CONTENT - 1] || ''),
         '記録者': String(row[COL_INDEX.RECORDER - 1] || ''),
         'raw': {
             detail1: d1, detail2: d2,
@@ -601,7 +600,7 @@ function addRecordByOffice(officeName, recordData, targetUsers, whoami) {
         newRow[COL_INDEX.USER - 1] = user;
         newRow[COL_INDEX.RECORDER - 1] = recordData.記録者;
         newRow[COL_INDEX.ITEM - 1] = recordData.項目;
-        newRow[COL_INDEX.CONTENT - 1] = recordData['経過内容・様子'];
+        newRow[COL_INDEX.CONTENT - 1] = recordData['経過内容様子'];
 
         // 詳細データ (raw) の展開
         const rd = recordData.raw || {};
@@ -617,7 +616,7 @@ function addRecordByOffice(officeName, recordData, targetUsers, whoami) {
         // 検索インデックス作成 (日付 氏名 項目 内容 詳細)
         newRow[COL_INDEX.SEARCH_INDEX - 1] = [
             Utilities.formatDate(inputDate, Session.getScriptTimeZone(), 'yyyy/MM/dd'),
-            user, recordData.項目, recordData['経過内容・様子'], rd.detail1
+            user, recordData.項目, recordData['経過内容様子'], rd.detail1
         ].join(' ');
 
         sheet.appendRow(newRow);
@@ -665,7 +664,7 @@ function editRecordByOffice(officeName, rowNumber, recordData, whoami) {
         currentValues[COL_INDEX.DATE - 1] = inputDate;
         currentValues[COL_INDEX.ITEM - 1] = recordData.項目;
         currentValues[COL_INDEX.RECORDER - 1] = recordData.記録者;
-        currentValues[COL_INDEX.CONTENT - 1] = recordData['経過内容・様子'];
+        currentValues[COL_INDEX.CONTENT - 1] = recordData['経過内容様子'];
 
         // 詳細データ(raw)の展開
         const rd = recordData.raw || {};
@@ -683,7 +682,7 @@ function editRecordByOffice(officeName, rowNumber, recordData, whoami) {
             Utilities.formatDate(inputDate, Session.getScriptTimeZone(), 'yyyy/MM/dd'),
             currentValues[COL_INDEX.USER - 1], // 既存のユーザー名
             recordData.項目,
-            recordData['経過内容・様子'],
+            recordData['経過内容様子'],
             rd.detail1
         ].join(' ');
 
@@ -758,7 +757,7 @@ function deleteRecordByOffice(officeName, rowNumber, whoami) {
             targetType: 'RECORD',
             targetId: String(rowNumber),
             status: 'SUCCESS',
-            message: `行${rowNumber}を削除・ゴミ箱へ移動`
+            message: `行${rowNumber}を削除ゴミ箱へ移動`
         });
 
         return "記録を削除し、ゴミ箱へ移動しました。";
@@ -1045,7 +1044,7 @@ function getIncidentsByOfficeV2(officeName) {
 
         const data = sheet.getDataRange().getValues();
         // const rows = data.slice(1).filter(r => r[0]); 
-        // ↑ これだと行番号がずれるため、ループで処理する
+        //  これだと行番号がずれるため、ループで処理する
 
         const norm = s => (s || '').toString().replace(/[\s\u3000]+/g, '').toLowerCase();
         const mapped = [];
@@ -1102,10 +1101,11 @@ function getIncidentsByOfficeV2(officeName) {
     }
 }
 
+
 /**
- * [v58] Optimized Pending List Fetcher (Two-Stage Hybrid Scan)
- * Stage 1: Scan recent 2000 rows (Fast for active items).
- * Stage 2: If needed, fetch ALL remaining rows in one batch (Fast for empty/sparse cases).
+ * [v59] Optimized Pending List Fetcher (User-Centric Index)
+ * Uses TextFinder to locate "My Records" and "Returned Items" directly.
+ * Avoids scanning 100k rows.
  */
 function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami) {
     const debugLogs = [];
@@ -1118,10 +1118,9 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         log(`[getPendingIncidentsByOffice] Start. Office: ${officeName}, Limit: ${limit}, User: ${whoami ? whoami.name : 'Unknown'}`);
 
         if (!officeName) throw new Error('Office not specified');
-
+        
         limit = Math.max(1, Math.min(limit, 100));
         offset = Math.max(0, offset);
-        const targetCount = limit + offset;
 
         const files = getFilesByOffice(officeName);
         const ss = SpreadsheetApp.openById(files.incidentFileId);
@@ -1134,89 +1133,110 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
         if (lastRow < 2) return { data: [], hasMore: false, debugLogs: debugLogs };
 
         const isManager = (whoami.role === 'manager');
-        const myNameNorm = (String(whoami.name || '')).replace(/[\s\u3000]+/g, '').toLowerCase();
+        const myName = String(whoami.name || '');
+        const myNameNorm = myName.replace(/[\s\u3000]+/g, '').toLowerCase();
+
+        // Sets to hold Row IDs
+        const candidateSet = new Set();
+        const returnedSet = new Set();
+
+        // 1. Find "Returned" Items (For All Users)
+        // Manager needs these. Staff also needs these.
+        const statusRange = sheet.getRange("L:L");
+        const returnTerms = ['差戻し', '差戻', '差し戻し'];
+        
+        returnTerms.forEach(term => {
+             statusRange.createTextFinder(term).matchEntireCell(true).findAll().forEach(cell => {
+                 const r = cell.getRow();
+                 if (r >= 2) {
+                     candidateSet.add(r);
+                     returnedSet.add(r);
+                 }
+             });
+        });
+
+        // 2. Find "My Records" (For Staff Only)
+        // Staff needs items where Recorder == Me AND Status == Unapproved
+        if (!isManager) {
+             const recorderRange = sheet.getRange("D:D");
+             // Exact match for name
+             recorderRange.createTextFinder(myName).matchEntireCell(true).findAll().forEach(cell => {
+                 const r = cell.getRow();
+                 if (r >= 2) {
+                     candidateSet.add(r);
+                 }
+             });
+        }
+
+        // 3. Sort Candidates Descending (Newest First)
+        const candidates = Array.from(candidateSet).sort((a, b) => b - a);
+        log(`[Index] Candidates found: ${candidates.length}`);
 
         const foundIndices = [];
+        const requiredCount = offset + limit + 1; // +1 for hasMore
 
-        // --- STAGE 1: Recent Scan (Last 2000 rows) ---
-        const SCAN_LIMIT = 2000;
-        let scanStartRow = Math.max(2, lastRow - SCAN_LIMIT + 1);
-        let numRows = lastRow - scanStartRow + 1;
+        // 4. Validate Logic (Batched)
+        // We need to check Status for candidates that are NOT in returnedSet
+        // (Returned set is already confirmed "Returned", so we keep them)
+        // (My Records set needs check: is it "Unapproved"?)
 
-        if (numRows > 0) {
-            const statusValues = sheet.getRange(scanStartRow, 12, numRows, 1).getValues();
-            const recorderValues = sheet.getRange(scanStartRow, 4, numRows, 1).getValues();
+        // We process candidates in chunks to minimize getRangeList calls
+        // But since candidates are sparse, we should process efficiently.
+        
+        let i = 0;
+        const BATCH_SIZE = 50;
 
-            for (let i = numRows - 1; i >= 0; i--) {
-                const rowIndex = scanStartRow + i;
-                const rawStatus = (statusValues[i][0] || '未承認').toString();
-                const status = rawStatus.replace(/[\s\u3000]+/g, '');
+        while (i < candidates.length && foundIndices.length < requiredCount) {
+             const batch = candidates.slice(i, i + BATCH_SIZE);
+             const subBatchToCheck = [];
+             
+             // Classify check requirement
+             for (const r of batch) {
+                 if (returnedSet.has(r)) {
+                     // Already confirmed as "Returned", automatic keep
+                     foundIndices.push(r);
+                 } else {
+                     // Need to check status (it's a "My Record" candidate)
+                     subBatchToCheck.push(r);
+                 }
+                 if (foundIndices.length >= requiredCount) break;
+             }
+             
+             if (foundIndices.length >= requiredCount) break;
 
-                let isMatch = false;
-                if (isManager) {
-                    if (status === '差戻し' || status === '差戻' || status === '差し戻し') isMatch = true;
-                } else {
-                    if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
-                        const rawRecorder = (recorderValues[i][0] || '').toString();
-                        const rName = rawRecorder.replace(/[\s\u3000]+/g, '').toLowerCase();
-                        if (rName === myNameNorm) isMatch = true;
-                    }
-                }
+             // Fetch statuses for subBatchToCheck
+             if (subBatchToCheck.length > 0) {
+                 const ranges = subBatchToCheck.map(r => `L${r}`);
+                 const rangeList = sheet.getRangeList(ranges);
+                 const rangesObj = rangeList.getRanges();
+                 
+                 for (let k = 0; k < rangesObj.length; k++) {
+                     const r = subBatchToCheck[k];
+                     const val = (rangesObj[k].getValue() || '未承認').toString();
+                     const status = val.replace(/[\s\u3000]+/g, '');
+                     
+                     if (status === '未承認') {
+                         foundIndices.push(r);
+                     }
+                 }
+             }
 
-                if (isMatch) {
-                    foundIndices.push(rowIndex);
-                    if (foundIndices.length >= targetCount + 1) break;
-                }
-            }
+             i += BATCH_SIZE;
         }
 
-        // --- STAGE 2: Deep Scan (Remaining rows) ---
-        // If we still need more items and there are rows left to scan
-        if (foundIndices.length < targetCount + 1 && scanStartRow > 2) {
-            const remainderRows = scanStartRow - 2; // Rows from 2 to scanStartRow-1
-            if (remainderRows > 0) {
-                log(`[Stage 2] Fetching remaining ${remainderRows} rows...`);
-
-                const statusValues = sheet.getRange(2, 12, remainderRows, 1).getValues();
-                const recorderValues = sheet.getRange(2, 4, remainderRows, 1).getValues();
-
-                for (let i = remainderRows - 1; i >= 0; i--) {
-                    const rowIndex = 2 + i;
-                    const rawStatus = (statusValues[i][0] || '未承認').toString();
-                    const status = rawStatus.replace(/[\s\u3000]+/g, '');
-
-                    let isMatch = false;
-                    if (isManager) {
-                        if (status === '差戻し' || status === '差戻' || status === '差し戻し') isMatch = true;
-                    } else {
-                        if (status === '未承認' || status === '差戻し' || status === '差戻' || status === '差し戻し') {
-                            const rawRecorder = (recorderValues[i][0] || '').toString();
-                            const rName = rawRecorder.replace(/[\s\u3000]+/g, '').toLowerCase();
-                            if (rName === myNameNorm) isMatch = true;
-                        }
-                    }
-
-                    if (isMatch) {
-                        foundIndices.push(rowIndex);
-                        if (foundIndices.length >= targetCount + 1) break;
-                    }
-                }
-            }
-        }
-
-        // --- Pagination & Data Fetch ---
-        const pageIndices = foundIndices.slice(offset, offset + limit);
+        // 5. Pagination & Fetch Data
+        const outputIndices = foundIndices.slice(offset, offset + limit);
         const hasMore = foundIndices.length > (offset + limit);
         const results = [];
 
-        if (pageIndices.length > 0) {
-            const ranges = pageIndices.map(r => `A${r}:P${r}`);
+        if (outputIndices.length > 0) {
+            const ranges = outputIndices.map(r => `A${r}:P${r}`);
             const rangeList = sheet.getRangeList(ranges);
             const rangeValues = rangeList.getRanges().map(r => r.getValues()[0]);
 
-            for (let i = 0; i < rangeValues.length; i++) {
-                const row = rangeValues[i];
-                const rowIndex = pageIndices[i];
+            for (let k = 0; k < rangeValues.length; k++) {
+                const row = rangeValues[k];
+                const rowIndex = outputIndices[k];
                 if (!row[0]) continue;
 
                 results.push({
@@ -1242,7 +1262,7 @@ function getPendingIncidentsByOffice(officeName, limit = 50, offset = 0, whoami)
             }
         }
 
-        log(`[getPendingIncidentsByOffice] Found: ${foundIndices.length}, Returned: ${results.length}, HasMore: ${hasMore}`);
+        log(`[getPendingIncidentsByOffice] Final: ${results.length}, HasMore: ${hasMore}`);
         return { data: results, hasMore: hasMore, debugLogs: debugLogs };
 
     } catch (e) {
@@ -1599,7 +1619,6 @@ function restoreFromTrash(officeName, trashRowIndex) {
         throw new Error("復元失敗: " + e.message);
     }
 }
-
 /**
  * インシデント削除 (ByOffice)
  */
@@ -2112,5 +2131,3 @@ function getApprovalIncidentsBatched(officeName, lastRowId = null) {
         return { data: [], debug: { error: e.toString() } };
     }
 }
-
-
