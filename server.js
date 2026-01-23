@@ -168,6 +168,73 @@ function getStaffListByOffice(officeName) {
  */
 // (Duplicate removed - kept implementation at line ~891)
 
+/**
+ * 指定された事業所の利用者リストを取得 (Direct)
+ */
+function getUserListDirectByOffice(officeName) {
+    const ss = SpreadsheetApp.openById(getMasterFileId());
+    const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_USER_LIST);
+    if (!sheet || sheet.getLastRow() < 2) return [];
+
+    const data = sheet.getDataRange().getValues();
+    // A: Name, B: Office
+    const users = [];
+    for (let i = 1; i < data.length; i++) {
+        const name = String(data[i][0]).trim();
+        const office = String(data[i][1] || '').trim();
+        if (name && (office === '' || office === officeName)) {
+            users.push({ userName: name });
+        }
+    }
+    return users;
+}
+
+/**
+ * 指定された事業所の職員リストを取得 (Direct)
+ */
+function getStaffListDirectByOffice(officeName) {
+    const ss = SpreadsheetApp.openById(getMasterFileId());
+    const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_STAFF_LIST);
+    if (!sheet || sheet.getLastRow() < 2) return [];
+
+    const data = sheet.getDataRange().getValues();
+    // A: Name, B: Office(comma sep), C: Role
+    const staffs = [];
+    for (let i = 1; i < data.length; i++) {
+        const name = String(data[i][0]).trim();
+        const offices = String(data[i][1] || '').split(',').map(s => s.trim());
+        const role = String(data[i][2] || 'staff').trim();
+
+        if (name && (offices.length === 0 || offices.includes('') || offices.includes(officeName))) {
+            staffs.push({ name: name, role: role });
+        }
+    }
+    return staffs;
+}
+
+/**
+ * 指定された事業所の定型文リストを取得 (Direct)
+ */
+function getPhraseListDirectByOffice(officeName) {
+    const ss = SpreadsheetApp.openById(getMasterFileId());
+    const sheet = ss.getSheetByName(SHEET_NAMES.MASTER_PHRASES);
+    if (!sheet || sheet.getLastRow() < 2) return [];
+
+    const data = sheet.getDataRange().getValues();
+    // B: Category, C: Content, D: Office
+    const phrases = [];
+    for (let i = 1; i < data.length; i++) {
+        const category = String(data[i][1] || '').trim();
+        const content = String(data[i][2] || '').trim();
+        const office = String(data[i][3] || '').trim();
+
+        if (content && (office === '' || office === officeName)) {
+            phrases.push({ 区分: category, 内容: content });
+        }
+    }
+    return phrases;
+}
+
 
 /**
  * PIN認証 & 事業所アクセス権チェック
